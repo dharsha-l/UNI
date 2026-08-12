@@ -1,0 +1,83 @@
+import { Router, Request, Response } from 'express';
+import { DB, insertRecord, updateRecord } from '../database';
+import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import { VisionAIService } from '../services/aiServices';
+
+const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+router.get('/:inspectionId', (req: Request, res: Response) => {
+  const images = DB.images.filter(i => i.inspection_id === req.params.inspectionId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  res.json(images);
+});
+
+router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
+  const { inspection_id, category } = req.body;
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: 'No file provided' });
+
+  const id = uuidv4();
+  const record = { id, inspection_id, filename: file.originalname, category: category || 'General', status: 'Uploaded', created_at: new Date().toISOString() };
+  insertRecord(DB.images, record);
+  res.json(record);
+});
+
+router.post('/:id/analyze', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const image = DB.images.find(i => i.id === id);
+    if (!image) return res.status(404).json({ error: 'Image not found' });
+
+    updateRecord(DB.images, id, { status: 'Processing' } as any);
+    const detections = await VisionAIService.detectObjects(image.id, image.filename, image.category);
+
+    for (const det of detections) {
+      const did = uuidv4();
+      DB.detections.push({ id: did, inspection_id: image.inspection_id, image_id: image.id, object_type: det.object_type, confidence: det.confidence, created_at: new Date().toISOString() });
+    }
+
+    updateRecord(DB.images, id, { status: 'Analyzed', analyzed_at: new Date().toISOString() } as any);
+    res.json({ success: true, detections_count: detections.length, detections });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/analyze-all/:inspectionId', async (req: Request, res: Response) => {
+  try {
+    const { inspectionId } = req.params;
+    const images = DB.images.filter(i => i.inspection_id === inspectionId && i.status !== 'Analyzed');
+
+    let totalDetections = 0;
+    for (const img of images) {
+      updateRecord(DB.images, img.id, { status: 'Processing' } as any);
+      const detections = await VisionAIService.detectObjects(img.id, img.filename, img.category);
+      for (const det of detections) {
+        const did = uuidv4();
+        DB.detections.push({ id: did, inspection_id: inspectionId, image_id: img.id, object_type: det.object_type, confidence: det.confidence, created_at: new Date().toISOString() });
+      }
+      updateRecord(DB.images, img.id, { status: 'Analyzed', analyzed_at: new Date().toISOString() } as any);
+      totalDetections += detections.length;
+    }
+
+    const allDetections = DB.detections.filter(d => d.inspection_id === inspectionId).map(d => {
+      const img = DB.images.find(i => i.id === d.image_id);
+      return { ...d, image_name: img?.filename, category: img?.category };
+    });
+    res.json({ success: true, images_analyzed: images.length, total_detections: totalDetections, detections: allDetections });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/detections/:inspectionId', (req: Request, res: Response) => {
+  const detections = DB.detections.filter(d => d.inspection_id === req.params.inspectionId).map(d => {
+    const img = DB.images.find(i => i.id === d.image_id);
+    return { ...d, image_name: img?.filename, category: img?.category };
+  });
+  res.json(detections);
+});
+
+export default router;

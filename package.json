@@ -1,0 +1,12 @@
+{
+  "name": "inspectai",
+  "version": "1.0.0",
+  "description": "InspectAI — Evidence-driven AI-assisted institutional inspection system",
+  "scripts": {
+    "start": "powershell -ExecutionPolicy Bypass -File start.ps1",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install"
+  },
+  "workspaces": ["backend", "frontend"]
+}
