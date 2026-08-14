@@ -98,10 +98,11 @@ Spring Cloud Gateway (Java 21 - Port 8080)
 
 Below is the user-approved, high-payoff execution sequence designed for maximum demo impact and risk reduction:
 
-### 1️⃣ Step 1: Real Digital PDF Text Extraction (`pdfplumber`) [COMPLETED ✅]
-- [x] **`ai-service/pdf_extraction.py`**: Implemented `extract_text_from_pdf()` using `pdfplumber` to loop pages and extract digital text cleanly.
-- [x] **`POST /api/v1/ai/documents/analyze`**: Updated endpoint in `ai-service/main.py` to accept `UploadFile`, extract text via temporary file cleanup, and return `{filename, extracted_text, length, is_text_based, message}`.
-- [x] **Automated Tests**: Created `ai-service/test_documents_analyze.py` with `pytest` & `TestClient` verifying runtime digital PDF text extraction (100% passing).
+### 1️⃣ Step 1: Hybrid Real Document Extraction (pdfplumber + Gemini Vision + OpenCV/Tesseract) [COMPLETED ✅]
+- [x] **`ai-service/pdf_extraction.py`**: Implemented 3-Tier fallback chain: `pdfplumber` (digital text) ➔ Gemini Vision API (`google-genai`) ➔ OpenCV+PyTesseract preprocessed OCR fallback.
+- [x] **`POST /api/v1/ai/documents/analyze`**: Updated endpoint in `ai-service/main.py` with temporary file handling, returning `{filename, extracted_text, length, is_text_based, extraction_method, message}`.
+- [x] **Security Hardening**: Loaded `GEMINI_API_KEY` securely via `.env` / `python-dotenv`, excluded `.env` in `.gitignore`, and committed `.env.example`.
+- [x] **Automated Tests**: Created `test_documents_analyze.py` with 4 `pytest` tests covering text PDFs, multi-page PDFs, Gemini key unsetting, and Gemini Vision mocking (4/4 passing).
 
 ### 2️⃣ Step 2: One Working YOLO Detector End-to-End (Fire Extinguisher Focus)
 - **Goal**: Implement a narrow, 100% real YOLOv8 object detector specifically targeting Fire Extinguishers in facility photos.
