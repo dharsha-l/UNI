@@ -49,7 +49,6 @@ def extract_text_via_gemini(pdf_path: str) -> Dict[str, Any]:
         return {"success": False, "reason": "genai_package_missing"}
 
     try:
-        logger.info(f"Calling Gemini API for {pdf_path}...")
         client = genai.Client(api_key=api_key)
         
         with open(pdf_path, "rb") as f:
@@ -61,18 +60,41 @@ def extract_text_via_gemini(pdf_path: str) -> Dict[str, Any]:
             "Return ONLY valid JSON, no markdown formatting."
         )
 
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=[
-                types.Part.from_bytes(
-                    data=pdf_bytes,
-                    mime_type="application/pdf"
-                ),
-                prompt
-            ]
-        )
+        model_candidates = [
+            "gemini-3.6-flash",
+            "models/gemini-3.6-flash",
+            "gemini-2.5-flash",
+            "models/gemini-2.5-flash",
+            "gemini-flash-latest"
+        ]
 
-        raw_output = response.text.strip() if response.text else ""
+        response = None
+        last_error = None
+
+        for model_name in model_candidates:
+            try:
+                logger.info(f"Calling Gemini API for {pdf_path} using model '{model_name}'...")
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[
+                        types.Part.from_bytes(
+                            data=pdf_bytes,
+                            mime_type="application/pdf"
+                        ),
+                        prompt
+                    ]
+                )
+                if response and response.text:
+                    logger.info(f"Gemini API call succeeded with model '{model_name}'")
+                    break
+            except Exception as err:
+                last_error = err
+                logger.warning(f"Model '{model_name}' failed: {err}")
+
+        if not response or not response.text:
+            raise last_error or Exception("All Gemini model candidates failed.")
+
+        raw_output = response.text.strip()
         logger.info(f"Gemini responded with {len(raw_output)} characters")
         logger.info(f"Raw response preview: {raw_output[:200]}")
         
