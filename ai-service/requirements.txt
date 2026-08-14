@@ -6,3 +6,8 @@ pdfplumber
 fpdf2
 pytest
 httpx
+google-genai
+python-dotenv
+opencv-python
+pytesseract
+pdf2image

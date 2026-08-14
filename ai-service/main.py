@@ -65,8 +65,12 @@ def health_check():
         "timestamp": datetime.utcnow().isoformat()
     }
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import tempfile
 import os
+import json
 from pdf_extraction import extract_text_from_pdf
 
 # 1. Document Real Text Extraction Microservice
@@ -82,19 +86,26 @@ async def analyze_document(file: UploadFile = File(...)):
         temp_file.write(content)
         temp_file.close()
 
-        extracted_text = extract_text_from_pdf(temp_path)
+        extracted_content, extraction_method = extract_text_from_pdf(temp_path)
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-    length = len(extracted_text)
-    is_text_based = length > 0
+    if isinstance(extracted_content, dict):
+        text_repr = json.dumps(extracted_content)
+        length = len(text_repr)
+        is_text_based = bool(extracted_content)
+    else:
+        text_repr = str(extracted_content) if extracted_content else ""
+        length = len(text_repr)
+        is_text_based = length > 0
 
     response = {
         "filename": filename,
-        "extracted_text": extracted_text,
+        "extracted_text": extracted_content if is_text_based else "",
         "length": length,
-        "is_text_based": is_text_based
+        "is_text_based": is_text_based,
+        "extraction_method": extraction_method
     }
 
     if not is_text_based:
