@@ -31,6 +31,3 @@ Write-Host ""
 # Open browser
 Start-Sleep -Seconds 2
 Start-Process "http://localhost:5173"
-
-
-hello
