@@ -2,3 +2,7 @@ fastapi
 uvicorn
 pydantic
 python-multipart
+pdfplumber
+fpdf2
+pytest
+httpx

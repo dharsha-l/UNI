@@ -65,35 +65,42 @@ def health_check():
         "timestamp": datetime.utcnow().isoformat()
     }
 
-# 1. Document OCR Claim Extraction Microservice
-@app.post("/api/v1/ai/documents/analyze")
-async def analyze_document(doc_id: str = Form(...), filename: str = Form(...)):
-    fname_lower = filename.lower()
-    claims = []
-    
-    if "ssr" in fname_lower or "self_study" in fname_lower:
-        claims = [
-            {"id": str(uuid.uuid4()), "category": "Infrastructure", "claim_name": "Barrier-free Ramps", "value": "Available at all 4 main building blocks", "source_document": filename, "page_number": 14, "confidence": 0.94},
-            {"id": str(uuid.uuid4()), "category": "Safety", "claim_name": "Fire Safety NOC", "value": "Valid till Dec 2026", "source_document": filename, "page_number": 22, "confidence": 0.98},
-            {"id": str(uuid.uuid4()), "category": "Academic", "claim_name": "Computer Labs", "value": "12 functional labs with 600 total PCs", "source_document": filename, "page_number": 45, "confidence": 0.91},
-            {"id": str(uuid.uuid4()), "category": "Faculty", "claim_name": "PhD Faculty Count", "value": "85 permanent PhD faculty members", "source_document": filename, "page_number": 60, "confidence": 0.89}
-        ]
-    elif "fire" in fname_lower or "noc" in fname_lower:
-        claims = [
-            {"id": str(uuid.uuid4()), "category": "Safety", "claim_name": "Fire Safety NOC", "value": "Expired on Nov 2025 (Renewal Pending)", "source_document": filename, "page_number": 1, "confidence": 0.96}
-        ]
-    else:
-        claims = [
-            {"id": str(uuid.uuid4()), "category": "General", "claim_name": f"Extracted Data from {filename}", "value": "Institutional Compliance Document Verified", "source_document": filename, "page_number": 1, "confidence": 0.88}
-        ]
+import tempfile
+import os
+from pdf_extraction import extract_text_from_pdf
 
-    return {
-        "success": True,
-        "document_id": doc_id,
+# 1. Document Real Text Extraction Microservice
+@app.post("/api/v1/ai/documents/analyze")
+async def analyze_document(file: UploadFile = File(...)):
+    filename = file.filename or "uploaded.pdf"
+    
+    # Save uploaded file to NamedTemporaryFile
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    temp_path = temp_file.name
+    try:
+        content = await file.read()
+        temp_file.write(content)
+        temp_file.close()
+
+        extracted_text = extract_text_from_pdf(temp_path)
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+    length = len(extracted_text)
+    is_text_based = length > 0
+
+    response = {
         "filename": filename,
-        "claims_extracted": len(claims),
-        "claims": claims
+        "extracted_text": extracted_text,
+        "length": length,
+        "is_text_based": is_text_based
     }
+
+    if not is_text_based:
+        response["message"] = "This appears to be a scanned or image-based PDF. OCR support is not yet implemented."
+
+    return response
 
 # 2. Vision AI Object Detection Microservice
 @app.post("/api/v1/ai/images/analyze")
