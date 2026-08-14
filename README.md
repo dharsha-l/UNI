@@ -6,34 +6,60 @@ A full-stack prototype for AI-driven institutional inspection, built for SIH/hac
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start & How to Run
 
 ### Prerequisites
-- Node.js 18+
-- npm
+- **Node.js** 18+ and **npm**
+- **Java 21 (JDK 21)** and **Maven** (`mvn`)
+- **Python** 3.10+ and **pip**
 
-### Run the Application
+---
 
-**Option 1: Using the startup script**
-```powershell
-.\start.ps1
-```
+### Option 1: Run Enterprise Microservices Architecture (Recommended)
 
-**Option 2: Manually (two terminal windows)**
+Run each service in a separate terminal:
 
-Terminal 1 — Backend:
+#### 1️⃣ AI Microservice (Python FastAPI — Port 8000)
 ```bash
-cd backend
-npm run dev
+cd ai-service
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+./venv/bin/uvicorn main:app --port 8000 --reload
+```
+*API Docs: **http://localhost:8000/docs***
+
+#### 2️⃣ Core Backend (Spring Boot / Java 21 — Port 8081)
+```bash
+cd core-backend
+mvn spring-boot:run
+```
+*H2 DB Console: **http://localhost:8081/h2-console***
+
+#### 3️⃣ API Gateway (Spring Cloud Gateway — Port 8080)
+```bash
+cd gateway
+mvn spring-boot:run
 ```
 
-Terminal 2 — Frontend:
+#### 4️⃣ Frontend Application (React + Vite + TypeScript — Port 5173)
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
+*App URL: **http://localhost:5173***
 
-Then open: **http://localhost:5173**
+---
+
+### Option 2: Run Express Prototype (Single-Command Launch)
+
+If you only want to run the React Frontend and Express Backend without Java/Python:
+
+```bash
+npm install
+npm run dev
+```
+*App URL: **http://localhost:5173***
 
 ---
 
@@ -63,21 +89,23 @@ Then open: **http://localhost:5173**
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Enterprise Microservice Architecture
 
 ```
-frontend/          React + Vite + TypeScript + Tailwind CSS
-  src/
-    pages/         All 15+ application pages
-    components/    Layout, shared components
-    services/      API service layer (axios)
-    context/       Auth context
+frontend/             React + Vite + TypeScript + Tailwind CSS (Port 5173)
+  src/pages           17 Application Page Modules
+  src/services        Axios API Client Layer
 
-backend/           Node.js + Express + TypeScript
-  src/
-    routes/        REST API routes
-    services/      Mock AI services (replaceable)
-    database.ts    In-memory data store
+gateway/              Spring Cloud Gateway (Port 8080)
+  application.yml     Centralized JWT Validation, Rate Limiting & Proxy Routing
+
+core-backend/         Spring Boot (Java 21) Core Backend (Port 8081)
+  com.inspectai.core  User Auth, Institutions, Inspections, Findings, Audit Trail & JPA Entities
+
+ai-service/           FastAPI (Python 3.11) AI Microservice (Port 8000)
+  main.py             OCR Document Claims, Vision Object Detection, RAG Search & AI Engine
+
+backend/              Express TypeScript Prototype (Port 3001 - Legacy / Alternative)
 ```
 
 ---

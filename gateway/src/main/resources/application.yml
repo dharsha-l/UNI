@@ -1,0 +1,31 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: inspectai-gateway
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+      routes:
+        # Route Core Business APIs to Spring Boot Backend (Port 8081)
+        - id: core-backend-route
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/auth/**, /api/institutions/**, /api/inspections/**, /api/findings/**, /api/reports/**, /api/analytics/**
+
+        # Route AI Microservice APIs to Python FastAPI (Port 8000)
+        - id: ai-service-route
+          uri: http://localhost:8000
+          predicates:
+            - Path=/api/v1/ai/**
