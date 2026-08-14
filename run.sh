@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # InspectAI - Enterprise One-Click Launcher for macOS & Linux
+# Auto-provisions PostgreSQL, Python AI, Spring Boot & React Stack
 # ==============================================================================
 
 set -e
@@ -20,6 +21,11 @@ echo -e "${BLUE}================================================================
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+# Portable command check helper
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
 # ------------------------------------------------------------------------------
 # Helper Function: Free port if in use
 # ------------------------------------------------------------------------------
@@ -34,7 +40,7 @@ free_port() {
     fi
 }
 
-echo -e "\n${YELLOW}[1/5] Checking and freeing ports (8000, 8081, 8080, 5173)...${NC}"
+echo -e "\n${YELLOW}[1/6] Checking and freeing ports (8000, 8081, 8080, 5173)...${NC}"
 free_port 8000
 free_port 8081
 free_port 8080
@@ -42,12 +48,115 @@ free_port 5173
 echo -e "${GREEN}✓ All ports cleared and ready.${NC}"
 
 # ------------------------------------------------------------------------------
-# 1. Check & Install Node.js Dependencies
+# 1. Environment & Secrets Check (.env)
 # ------------------------------------------------------------------------------
-echo -e "\n${YELLOW}[2/5] Checking Node.js & Frontend dependencies...${NC}"
-if ! command -v node &> /dev/null; then
-    echo -e "${RED}❌ Error: Node.js is not installed. Please install Node.js 18+ from https://nodejs.org${NC}"
-    exit 1
+echo -e "\n${YELLOW}[2/6] Verifying environment configuration (.env)...${NC}"
+if [ ! -f ".env" ]; then
+    echo -e "${YELLOW}📄 Creating default .env file from .env.example...${NC}"
+    cp .env.example .env 2>/dev/null || touch .env
+fi
+
+# Ensure DB credentials exist in .env without overwriting existing keys
+if ! grep -q "^DB_USER=" .env; then
+    echo "DB_USER=inspectai" >> .env
+fi
+
+if ! grep -q "^DB_PASSWORD=" .env; then
+    echo "DB_PASSWORD=inspectai_dev_pass" >> .env
+fi
+
+if ! grep -q "^DB_NAME=" .env; then
+    echo "DB_NAME=inspectai" >> .env
+fi
+
+# Load variables safely from .env for script execution
+set -a
+[ -f .env ] && . .env
+set +a
+
+DB_USER="${DB_USER:-inspectai}"
+DB_PASS="${DB_PASSWORD:-inspectai_dev_pass}"
+DB_NAME="${DB_NAME:-inspectai}"
+
+echo -e "${GREEN}✓ Environment configuration loaded.${NC}"
+
+# ------------------------------------------------------------------------------
+# 2. Automated PostgreSQL Check, Install & Provisioning
+# ------------------------------------------------------------------------------
+echo -e "\n${YELLOW}[3/6] Checking & provisioning PostgreSQL database...${NC}"
+
+if ! command_exists psql; then
+    echo -e "${YELLOW}📦 PostgreSQL client (psql) not found. Installing PostgreSQL...${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if command_exists brew; then
+            echo -e "${YELLOW}🍺 Installing PostgreSQL@16 via Homebrew...${NC}"
+            brew install postgresql@16
+            brew services start postgresql@16 || brew services start postgresql || true
+        else
+            echo -e "${RED}❌ Homebrew is required on macOS to auto-install PostgreSQL. Please install brew or PostgreSQL manually.${NC}"
+            exit 1
+        fi
+    elif [ -f /etc/debian_version ] || command_exists apt; then
+        echo -e "${YELLOW}🐧 Installing PostgreSQL via apt...${NC}"
+        sudo apt update && sudo apt install -y postgresql postgresql-contrib
+        sudo systemctl start postgresql && sudo systemctl enable postgresql
+    else
+        echo -e "${RED}❌ Please install PostgreSQL manually on your system.${NC}"
+        exit 1
+    fi
+else
+    # If psql is installed, make sure service is running on macOS/Linux
+    if [[ "$OSTYPE" == "darwin"* ]] && command_exists brew; then
+        brew services start postgresql@16 2>/dev/null || brew services start postgresql 2>/dev/null || true
+    elif command_exists systemctl; then
+        sudo systemctl start postgresql 2>/dev/null || true
+    fi
+fi
+
+# Auto-provision Database & Role non-interactively using PGPASSWORD
+export PGPASSWORD="${DB_SUPERUSER_PASSWORD:-postgres}"
+
+# Determine psql superuser command
+PSQL_CMD="psql -U postgres -h localhost"
+if ! psql -U postgres -h localhost -c "SELECT 1;" &>/dev/null; then
+    if psql postgres -c "SELECT 1;" &>/dev/null; then
+        PSQL_CMD="psql postgres"
+    elif psql -c "SELECT 1;" &>/dev/null; then
+        PSQL_CMD="psql"
+    fi
+fi
+
+echo -e "${YELLOW}⚙️ Auto-provisioning database '${DB_NAME}' and user '${DB_USER}'...${NC}"
+
+# Idempotent role creation
+$PSQL_CMD -tc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" 2>/dev/null | grep -q 1 || \
+$PSQL_CMD -c "CREATE USER ${DB_USER} WITH ENCRYPTED PASSWORD '${DB_PASS}';" 2>/dev/null || true
+
+# Idempotent database creation
+$PSQL_CMD -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" 2>/dev/null | grep -q 1 || \
+$PSQL_CMD -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};" 2>/dev/null || true
+
+# Grant privileges
+$PSQL_CMD -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};" 2>/dev/null || true
+
+unset PGPASSWORD
+
+echo -e "${GREEN}✅ PostgreSQL ready: database '${DB_NAME}' provisioned.${NC}"
+
+# ------------------------------------------------------------------------------
+# 3. Check & Install Node.js & Frontend Dependencies
+# ------------------------------------------------------------------------------
+echo -e "\n${YELLOW}[4/6] Checking Node.js & Frontend dependencies...${NC}"
+if ! command_exists node; then
+    echo -e "${YELLOW}📦 Node.js not found. Attempting installation...${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]] && command_exists brew; then
+        brew install node
+    elif command_exists apt; then
+        sudo apt update && sudo apt install -y nodejs npm
+    else
+        echo -e "${RED}❌ Error: Node.js is not installed. Please install Node.js from https://nodejs.org${NC}"
+        exit 1
+    fi
 fi
 
 if [ ! -d "node_modules" ]; then
@@ -62,12 +171,19 @@ fi
 echo -e "${GREEN}✓ Node.js & Frontend dependencies ready.${NC}"
 
 # ------------------------------------------------------------------------------
-# 2. Check & Install Python FastAPI AI Dependencies
+# 4. Check & Install Python FastAPI AI Dependencies
 # ------------------------------------------------------------------------------
-echo -e "\n${YELLOW}[3/5] Checking Python 3 & AI Microservice dependencies...${NC}"
-if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}❌ Error: Python 3 is not installed. Please install Python 3.10+ from https://python.org${NC}"
-    exit 1
+echo -e "\n${YELLOW}[5/6] Checking Python 3 & AI Microservice dependencies...${NC}"
+if ! command_exists python3; then
+    echo -e "${YELLOW}📦 Python 3 not found. Attempting installation...${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]] && command_exists brew; then
+        brew install python@3.11
+    elif command_exists apt; then
+        sudo apt update && sudo apt install -y python3 python3-venv python3-pip
+    else
+        echo -e "${RED}❌ Error: Python 3 is not installed. Please install Python 3 from https://python.org${NC}"
+        exit 1
+    fi
 fi
 
 cd "$SCRIPT_DIR/ai-service"
@@ -76,40 +192,51 @@ if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi
 
-echo -e "${YELLOW}🐍 Checking Python requirements...${NC}"
+echo -e "${YELLOW}🐍 Installing Python AI requirements...${NC}"
 ./venv/bin/pip install -q -r requirements.txt
 cd "$SCRIPT_DIR"
 echo -e "${GREEN}✓ Python FastAPI AI service dependencies ready.${NC}"
 
 # ------------------------------------------------------------------------------
-# 3. Check Java & Maven for Spring Boot
+# 5. Check Java & Maven for Spring Boot
 # ------------------------------------------------------------------------------
-echo -e "\n${YELLOW}[4/5] Checking Java 21 & Maven for Spring Boot services...${NC}"
-if ! command -v java &> /dev/null; then
-    echo -e "${RED}❌ Error: Java is not installed. Please install JDK 21 from https://adoptium.net${NC}"
-    exit 1
+if ! command_exists java; then
+    echo -e "${YELLOW}📦 Java 21 not found. Attempting installation...${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]] && command_exists brew; then
+        brew install openjdk@21
+    elif command_exists apt; then
+        sudo apt update && sudo apt install -y openjdk-21-jdk
+    else
+        echo -e "${RED}❌ Error: Java is not installed. Please install JDK 21 from https://adoptium.net${NC}"
+        exit 1
+    fi
 fi
 
 MAVEN_CMD="mvn"
-if ! command -v mvn &> /dev/null; then
-    echo -e "${YELLOW}⚠️ Global 'mvn' not found. Checking Maven Wrapper...${NC}"
+if ! command_exists mvn; then
     if [ -f "./mvnw" ]; then
         MAVEN_CMD="./mvnw"
     else
-        echo -e "${RED}❌ Error: Maven is not installed. Please install Maven (brew install maven or https://maven.apache.org)${NC}"
-        exit 1
+        echo -e "${YELLOW}📦 Installing Maven...${NC}"
+        if [[ "$OSTYPE" == "darwin"* ]] && command_exists brew; then
+            brew install maven
+        elif command_exists apt; then
+            sudo apt update && sudo apt install -y maven
+        else
+            echo -e "${RED}❌ Error: Maven is not installed. Please install Maven.${NC}"
+            exit 1
+        fi
     fi
 fi
 echo -e "${GREEN}✓ Java & Maven ready.${NC}"
 
 # ------------------------------------------------------------------------------
-# 4. Launch All 4 Microservices Concurrently
+# 6. Launch All 4 Microservices Concurrently
 # ------------------------------------------------------------------------------
-echo -e "\n${YELLOW}[5/5] Launching Microservices...${NC}"
+echo -e "\n${YELLOW}[6/6] Launching Microservices...${NC}"
 
 PIDS=()
 
-# Function to stop all background processes on exit
 cleanup() {
     echo -e "\n${YELLOW}🛑 Shutting down all InspectAI microservices...${NC}"
     for pid in "${PIDS[@]}"; do
@@ -129,7 +256,7 @@ echo -e "${BLUE}▶ Starting AI Microservice (FastAPI - Port 8000)...${NC}"
 PIDS+=($!)
 
 # 2. Start Spring Boot Core Backend (Port 8081)
-echo -e "${BLUE}▶ Starting Core Backend (Spring Boot Java 21 - Port 8081)...${NC}"
+echo -e "${BLUE}▶ Starting Core Backend (Spring Boot Java 21 / PostgreSQL - Port 8081)...${NC}"
 (cd core-backend && $MAVEN_CMD spring-boot:run) &
 PIDS+=($!)
 
@@ -143,26 +270,24 @@ echo -e "${BLUE}▶ Starting Frontend App (React + Vite - Port 5173)...${NC}"
 (cd frontend && npm run dev) &
 PIDS+=($!)
 
-# Sleep briefly and open browser
 sleep 4
 echo -e "\n${GREEN}======================================================================${NC}"
-echo -e "${GREEN} 🎉 InspectAI is Live & Ready!                                       ${NC}"
+echo -e "${GREEN} 🎉 InspectAI is Live & Ready (Native PostgreSQL Integration)!       ${NC}"
 echo -e "${GREEN}                                                                      ${NC}"
 echo -e "${GREEN} 🌐 Frontend App:      http://localhost:5173                           ${NC}"
 echo -e "${GREEN} 🌐 API Gateway:       http://localhost:8080                           ${NC}"
 echo -e "${GREEN} 🌐 Spring Boot Core:  http://localhost:8081                           ${NC}"
 echo -e "${GREEN} 🌐 FastAPI AI Docs:   http://localhost:8000/docs                      ${NC}"
+echo -e "${GREEN} 🐘 Database:          PostgreSQL 'inspectai' @ localhost:5432        ${NC}"
 echo -e "${GREEN}                                                                      ${NC}"
 echo -e "${GREEN} 🔐 Login: inspector@demo.com / inspector123                          ${NC}"
 echo -e "${GREEN}======================================================================${NC}"
 echo -e "${YELLOW}Press CTRL+C anytime to stop all services.${NC}\n"
 
-# Auto-open browser
-if command -v open &> /dev/null; then
+if command_exists open; then
     open http://localhost:5173
-elif command -v xdg-open &> /dev/null; then
+elif command_exists xdg-open; then
     xdg-open http://localhost:5173
 fi
 
-# Wait for background services
 wait

@@ -61,10 +61,12 @@ Spring Cloud Gateway (Java 21 - Port 8080)
 ### 1. Enterprise Microservice Stack Implementation
 - [x] **Spring Boot 3 (Java 21) Core Backend (`core-backend/`)**:
   - `pom.xml`, `application.yml`, `CoreBackendApplication.java`
-  - JPA Models (`User`, `Institution`, `Inspection`, `Finding`)
-  - Repositories (`UserRepository`, `InstitutionRepository`, `InspectionRepository`, `FindingRepository`)
-  - Rest Controllers (`AuthController`, `InstitutionController`, `InspectionController`, `FindingController`)
-  - In-Memory Data Seeder (`DataSeeder.java`)
+  - Native PostgreSQL 16 Integration (`org.postgresql:postgresql`, `jdbc:postgresql://localhost:5432/inspectai`)
+  - JPA Models (`User`, `Institution`, `Inspection`, `Finding`, `Document`)
+  - Repositories (`UserRepository`, `InstitutionRepository`, `InspectionRepository`, `FindingRepository`, `DocumentRepository`)
+  - Services (`FileStorageService`, `LocalDiskFileStorageService` saving uploads to `uploads/`)
+  - Rest Controllers (`AuthController`, `InstitutionController`, `InspectionController`, `FindingController`, `DocumentController`)
+  - In-Memory / PostgreSQL Data Seeder (`DataSeeder.java`)
 - [x] **Python FastAPI AI Microservice (`ai-service/`)**:
   - `main.py`, `requirements.txt`, Python virtualenv
   - Real Digital PDF Text Extraction endpoint (`POST /api/v1/ai/documents/analyze`) via `pdf_extraction.py` (`pdfplumber`)
