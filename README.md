@@ -31,11 +31,13 @@ run.bat
 ```
 
 > **What the launcher automatically does for you:**
-> 1. ✅ Checks for Node.js, Python 3, and Java 21.
-> 2. ✅ Automatically installs `npm` and `pip` dependencies if missing.
-> 3. ✅ Creates Python virtual environment (`ai-service/venv`) automatically.
-> 4. ✅ Boots up Python FastAPI (`8000`), Spring Boot Core (`8081`), Spring Gateway (`8080`), and React Frontend (`5173`) concurrently.
-> 5. ✅ Automatically opens your default web browser to **http://localhost:5173**.
+> 1. ✅ Checks for Node.js, Python 3, Java 21, Maven, PostgreSQL 16, and Poppler.
+> 2. ✅ Auto-provisions native PostgreSQL database `inspectai` and user `inspectai` non-interactively via `PGPASSWORD`.
+> 3. ✅ Generates local `.env` configuration and prompts interactively for missing `GEMINI_API_KEY`.
+> 4. ✅ Automatically installs `npm` and `pip` dependencies if missing and sets up `ai-service/venv`.
+> 5. ✅ Clears old processes bound to ports `8000`, `8081`, `8080`, and `5173`.
+> 6. ✅ Boots up Python FastAPI (`8000`), Spring Boot Core (`8081`), Spring Gateway (`8080`), and React Frontend (`5173`) concurrently.
+> 7. ✅ Automatically opens your default web browser to **http://localhost:5173**.
 
 ---
 
