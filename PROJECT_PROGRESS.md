@@ -10,7 +10,7 @@
 - **Project Name**: InspectAI (SIH1730)
 - **Git Branch**: `kavin` (`origin/kavin`)
 - **Architecture**: Decoupled Enterprise Microservices Architecture (Spring Boot + Spring Cloud Gateway + Python FastAPI + React TypeScript Frontend)
-- **Status**: 🟢 Core Microservice Architecture Fully Deployed & Running
+- **Status**: 🟢 Core Microservice Architecture Fully Deployed & Running (Waiting for user confirmation to start implementation phase)
 
 ---
 
@@ -69,24 +69,34 @@ Spring Cloud Gateway (Java 21 - Port 8080)
 
 ---
 
-## 🗺️ Step-by-Step Roadmap: What To Do Next
+## 🎯 Prioritized Implementation Roadmap (In Execution Order)
 
-Based on the research document (`SIH1730 AI Inspection Analysis.md`), here is the exact recommended execution roadmap:
+Below is the user-approved, high-payoff execution sequence designed for maximum demo impact and risk reduction:
 
-### Phase 1: AI Pipeline Enhancement (Immediate Next Step)
-- [ ] **Document OCR Integration**: Upgrade mock responses in `ai-service/main.py` to use real `pytesseract` / `pypdf` text extraction for uploaded PDFs/documents.
-- [ ] **Vision AI Object Detection**: Integrate PyTorch / YOLOv8 pretrained model in `ai-service/main.py` to detect physical facilities (fire extinguishers, stairs vs ramps, computer lab terminals).
-- [ ] **FAISS / Chroma Vector DB for RAG**: Index official NAAC manuals, AICTE APH 2024-27, and UGC regulation PDFs using `sentence-transformers` for instant vector search.
+### 1️⃣ Step 1: Real Document OCR Extraction (Lowest Risk, Highest Payoff)
+- **Goal**: Replace mock document extraction in `ai-service/main.py` with real `pypdf`/`pdfplumber` text parsing and `pytesseract` fallback for scanned pages.
+- **Payoff**: Instantly makes document analysis real instead of hardcoded.
 
-### Phase 2: Evidence Provenance & Traceability Graph (Key Innovation Gap)
-- [ ] **Traceability Matrix UI**: Enhance `FindingDetailPage.tsx` to visually display an interactive Evidence Graph linking:
-  - Document OCR Extract ➔ Image Detection ➔ External AISHE/NIRF baseline ➔ NAAC Regulation Clause ➔ Inspector Override Decision.
+### 2️⃣ Step 2: One Working YOLO Detector End-to-End (Fire Extinguisher Focus)
+- **Goal**: Implement a narrow, 100% real YOLOv8 object detector specifically targeting Fire Extinguishers in facility photos.
+- **Payoff**: Demonstrates solid visual AI verification without overcomplicating multi-class training.
 
-### Phase 3: External Government Data Integration
-- [ ] **AISHE & NIRF Dataset Ingestion**: Ingest open datasets (`AISHE_Directory.csv`, `NIRF_2024_Rankings.csv`) into Spring Boot JPA to cross-check self-reported college claims against national databases.
+### 3️⃣ Step 3: Stand Up FAISS / Chroma for Embedded Regulation RAG
+- **Goal**: Embed FAISS/Chroma in FastAPI (`ai-service`) with `sentence-transformers` vector search over NAAC manuals and AICTE APH clauses.
+- **Payoff**: Solves the major competitor gap identified in your research paper by delivering regulation-aware citations.
 
-### Phase 4: Inspection PDF Report Export
-- [ ] **PDF Generator**: Add a dynamic PDF export service (using iText / PDFBox in Spring Boot or ReportLab in Python) to allow inspectors to download signed inspection reports.
+### 4️⃣ Step 4: Evidence Traceability Graph UI (Core Differentiator)
+- **Goal**: Build an interactive evidence provenance graph on `FindingDetailPage.tsx` linking:
+  $$\text{OCR Extract} \longrightarrow \text{Visual AI Detection} \longrightarrow \text{External Baseline} \longrightarrow \text{Regulation Clause} \longrightarrow \text{Inspector Decision}$$
+- **Payoff**: Creates the visual "WOW" factor for hackathon judges by demonstrating transparent, accountable AI auditing.
+
+### 5️⃣ Step 5: Synthetic AISHE/NIRF Data Baseline & Cross-Check Demo
+- **Goal**: Seed 2–3 synthetic institution rows mimicking real AISHE/NIRF schemas in Spring Boot to demonstrate discrepancy checking.
+- **Payoff**: Proves cross-institutional data verification without waiting for restricted government API feeds.
+
+### 6️⃣ Step 6: PDF Inspection Report Generation (Mechanical - Do Last)
+- **Goal**: Add PDF export generation (using ReportLab in Python or PDFBox in Spring Boot) once Finding and Inspector Decision models are finalized.
+- **Payoff**: Provides a downloadable, signed audit report for institutional submission.
 
 ---
 
@@ -98,4 +108,4 @@ Based on the research document (`SIH1730 AI Inspection Analysis.md`), here is th
 | **Aug 14, 2026** | Architecture Stack | Migrated from Express TS prototype to Spring Boot (Java 21), Spring Gateway, and Python FastAPI microservices. |
 | **Aug 14, 2026** | Launchers (`run.sh` / `run.bat`) | Built one-click double-tap launchers with automatic port clearing (`8000`, `8081`, `8080`, `5173`). |
 | **Aug 14, 2026** | Git Tracking | Committed and pushed all changes to branch `origin/kavin`. |
-| **Aug 14, 2026** | `PROJECT_PROGRESS.md` | Created project progress tracker for continuous state tracking across sessions. |
+| **Aug 14, 2026** | `PROJECT_PROGRESS.md` | Updated implementation plan to 6-step demo-prioritized sequence. |
