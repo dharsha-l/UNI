@@ -267,6 +267,9 @@ const DocumentEvidencePage: React.FC = () => {
               </div>
             )}
           </div>
+        )}
+      </div>
+
       {(showClaims || claims.length > 0) && (
         <div className="mt-6 flex justify-end">
           <button
