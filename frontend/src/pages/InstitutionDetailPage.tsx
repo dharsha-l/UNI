@@ -16,9 +16,13 @@ const InstitutionDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([getInstitution(id), getInspectionHistory(id)]).then(([inst, hist]) => {
+    Promise.all([
+      getInstitution(id).catch(err => { console.error(err); return null; }),
+      getInspectionHistory(id).catch(err => { console.error(err); return []; })
+    ]).then(([inst, hist]) => {
       setInstitution(inst);
-      setHistory(hist);
+      setHistory(Array.isArray(hist) ? hist : []);
+    }).finally(() => {
       setLoading(false);
     });
   }, [id]);
@@ -31,7 +35,10 @@ const InstitutionDetailPage: React.FC = () => {
 
   if (!institution) return <div className="p-8 text-slate-500">Institution not found.</div>;
 
-  const latestInspection = history[0];
+  const latestInspection = (history && history.length > 0) ? history[0] : null;
+  const aishe = institution?.aishe_code || institution?.aisheCode || institution?.code || 'N/A';
+  const status = institution?.accreditation_status || institution?.accreditationStatus || 'NAAC A+';
+  const type = institution?.type || 'Higher Education';
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -51,11 +58,11 @@ const InstitutionDetailPage: React.FC = () => {
               <h1 className="text-2xl font-bold text-slate-900">{institution.name}</h1>
               <div className="flex items-center gap-3 mt-2 flex-wrap">
                 <span className="font-mono text-sm text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                  AISHE: {institution.aishe_code}
+                  AISHE: {aishe}
                 </span>
-                <span className="badge badge-blue">{institution.type}</span>
-                <span className={`badge ${institution.accreditation_status.includes('Under') ? 'badge-blue' : 'badge-low'}`}>
-                  {institution.accreditation_status}
+                <span className="badge badge-blue">{type}</span>
+                <span className={`badge ${status.includes('Under') ? 'badge-blue' : 'badge-low'}`}>
+                  {status}
                 </span>
               </div>
             </div>

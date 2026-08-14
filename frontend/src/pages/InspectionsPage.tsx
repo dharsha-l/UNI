@@ -26,9 +26,13 @@ const InspectionsPage: React.FC = () => {
   });
 
   useEffect(() => {
-    Promise.all([getInspections(), getInstitutions()]).then(([insps, insts]) => {
-      setInspections(insps);
-      setInstitutions(insts);
+    Promise.all([
+      getInspections().catch(err => { console.error(err); return []; }),
+      getInstitutions().catch(err => { console.error(err); return []; })
+    ]).then(([insps, insts]) => {
+      setInspections(Array.isArray(insps) ? insps : []);
+      setInstitutions(Array.isArray(insts) ? insts : []);
+    }).finally(() => {
       setLoading(false);
     });
   }, []);

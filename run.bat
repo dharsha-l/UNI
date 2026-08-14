@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 TITLE InspectAI - Enterprise One-Click Launcher for Windows
 :: ==============================================================================
 :: InspectAI - One-Click Double-Tap Launcher for Windows (Native PostgreSQL)
@@ -59,6 +60,7 @@ for /f "tokens=1,2 delims==" %%a in (.env) do (
 
 :: 1. Check & Free Ports (8000, 8081, 8080, 5173)
 echo [1/6] Clearing ports (8000, 8081, 8080, 5173)...
+powershell -Command "Get-NetTCPConnection -LocalPort 8080,8081,8000,5173 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; exit 0" >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000 " ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8081 " ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8080 " ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
@@ -67,37 +69,45 @@ echo ✓ All ports cleared.
 echo.
 
 :: 2. Check & Install PostgreSQL Database
-echo [2/6] Checking & provisioning PostgreSQL database...
+echo [2/6] Checking ^& provisioning PostgreSQL database...
 where psql >nul 2>nul
 if %errorlevel% neq 0 (
-    echo ⚠️ PostgreSQL client (psql) not found!
+    if exist "C:\Program Files\PostgreSQL\18\bin\psql.exe" set "PATH=%PATH%;C:\Program Files\PostgreSQL\18\bin"
+    if exist "C:\Program Files\PostgreSQL\17\bin\psql.exe" set "PATH=%PATH%;C:\Program Files\PostgreSQL\17\bin"
+    if exist "C:\Program Files\PostgreSQL\16\bin\psql.exe" set "PATH=%PATH%;C:\Program Files\PostgreSQL\16\bin"
+    if exist "C:\Program Files\PostgreSQL\15\bin\psql.exe" set "PATH=%PATH%;C:\Program Files\PostgreSQL\15\bin"
+    if exist "C:\Program Files\PostgreSQL\14\bin\psql.exe" set "PATH=%PATH%;C:\Program Files\PostgreSQL\14\bin"
+)
+
+where psql >nul 2>nul
+if %errorlevel% neq 0 (
+    echo ⚠️ PostgreSQL client ^(psql^) not found!
     where choco >nul 2>nul
     if %errorlevel% neq 0 (
         echo ❌ Chocolatey package manager is missing.
         echo Please install PostgreSQL manually from https://www.postgresql.org/download/windows/
-        echo or install Chocolatey (https://chocolatey.org) to enable silent auto-installation.
-        pause
-        exit /b 1
+        echo or install Chocolatey ^(https://chocolatey.org^) to enable silent auto-installation.
+        echo ⚠️ Skipping PostgreSQL auto-provisioning step.
     ) else (
         echo 🍫 Installing PostgreSQL 16 via Chocolatey...
         choco install postgresql16 --params "/Password:%DB_PASSWORD%" -y
     )
+) else (
+    :: Auto-provision database non-interactively using PGPASSWORD
+    set PGPASSWORD=%DB_PASSWORD%
+    echo ⚙️ Auto-provisioning database '%DB_NAME%' and user '%DB_USER%'...
+
+    psql -U postgres -h localhost -c "CREATE USER %DB_USER% WITH ENCRYPTED PASSWORD '%DB_PASSWORD%';" >nul 2>&1
+    psql -U postgres -h localhost -c "CREATE DATABASE %DB_NAME% OWNER %DB_USER%;" >nul 2>&1
+    psql -U postgres -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE %DB_NAME% TO %DB_USER%;" >nul 2>&1
+
+    set PGPASSWORD=
+    echo ✅ PostgreSQL ready: database '%DB_NAME%' provisioned.
 )
-
-:: Auto-provision database non-interactively using PGPASSWORD
-set PGPASSWORD=%DB_PASSWORD%
-echo ⚙️ Auto-provisioning database '%DB_NAME%' and user '%DB_USER%'...
-
-psql -U postgres -h localhost -c "CREATE USER %DB_USER% WITH ENCRYPTED PASSWORD '%DB_PASSWORD%';" >nul 2>&1
-psql -U postgres -h localhost -c "CREATE DATABASE %DB_NAME% OWNER %DB_USER%;" >nul 2>&1
-psql -U postgres -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE %DB_NAME% TO %DB_USER%;" >nul 2>&1
-
-set PGPASSWORD=
-echo ✅ PostgreSQL ready: database '%DB_NAME%' provisioned.
 echo.
 
 :: 3. Check Node.js & Frontend Dependencies
-echo [3/6] Checking Node.js & Frontend dependencies...
+echo [3/6] Checking Node.js ^& Frontend dependencies...
 where node >nul 2>nul
 if %errorlevel% neq 0 (
     echo ❌ Error: Node.js is not installed! Please install Node.js 18+ from https://nodejs.org
@@ -116,11 +126,11 @@ if not exist "frontend\node_modules\" (
     call npm install
     cd ..
 )
-echo ✓ Node.js & Frontend dependencies ready.
+echo ✓ Node.js ^& Frontend dependencies ready.
 echo.
 
 :: 4. Check Python & AI Service Dependencies
-echo [4/6] Checking Python & AI Microservice dependencies...
+echo [4/6] Checking Python ^& AI Microservice dependencies...
 where python >nul 2>nul
 if %errorlevel% neq 0 (
     echo ❌ Error: Python is not installed! Please install Python 3.10+ from https://python.org
@@ -130,7 +140,7 @@ if %errorlevel% neq 0 (
 
 cd ai-service
 if not exist "venv\" (
-    echo 🐍 Creating Python virtual environment (venv)...
+    echo 🐍 Creating Python virtual environment ^(venv^)...
     python -m venv venv
 )
 
@@ -141,7 +151,7 @@ echo ✓ Python FastAPI AI service dependencies ready.
 echo.
 
 :: 5. Check Java & Maven
-echo [5/6] Checking Java 21 & Maven...
+echo [5/6] Checking Java 21 ^& Maven...
 where java >nul 2>nul
 if %errorlevel% neq 0 (
     echo ❌ Error: Java is not installed! Please install JDK 21 from https://adoptium.net
@@ -160,7 +170,7 @@ if %errorlevel% neq 0 (
         exit /b 1
     )
 )
-echo ✓ Java & Maven ready (%MAVEN_CMD%).
+echo ✓ Java ^& Maven ready ^(%MAVEN_CMD%^).
 echo.
 
 :: 6. Launch Microservices in Concurrent Windows
@@ -180,17 +190,17 @@ start "InspectAI - React Frontend (Port 5173)" cmd /k "cd frontend && npm run de
 
 echo.
 echo ======================================================================
-echo  🎉 InspectAI is Live & Running (Native PostgreSQL Integration)!
-echo 
+echo  🎉 InspectAI is Live ^& Running ^(Native PostgreSQL Integration^)!
+echo.
 echo  🌐 Frontend App:     http://localhost:5173
 echo  🌐 API Gateway:      http://localhost:8080
 echo  🌐 Spring Boot Core: http://localhost:8081
 echo  🌐 FastAPI AI Docs:  http://localhost:8000/docs
 echo  🐘 Database:         PostgreSQL '%DB_NAME%' @ localhost:5432
-echo 
+echo.
 echo  🔐 Login: inspector@demo.com / inspector123
 echo ======================================================================
 echo.
 
-timeout /t 5 >nul
+timeout /t 5 >nul 2>&1 || ping -n 6 127.0.0.1 >nul 2>&1
 start http://localhost:5173
