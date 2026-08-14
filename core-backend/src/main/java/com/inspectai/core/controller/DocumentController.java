@@ -32,11 +32,13 @@ public class DocumentController {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @PostMapping("/institutions/{institutionId}/documents/upload")
+    @PostMapping({"/institutions/{institutionId}/documents/upload", "/documents/upload"})
     public ResponseEntity<?> uploadDocument(
-            @PathVariable Long institutionId,
-            @RequestParam(value = "inspectionId", required = false) Long inspectionId,
+            @PathVariable(value = "institutionId", required = false) Long pathInstitutionId,
+            @RequestParam(value = "inspection_id", required = false) Long inspectionId,
             @RequestParam("file") MultipartFile file) {
+
+        Long institutionId = pathInstitutionId != null ? pathInstitutionId : 1L;
 
         try {
             // 1. Store file locally
@@ -89,7 +91,20 @@ public class DocumentController {
             );
 
             Document savedDocument = documentRepository.save(document);
-            return ResponseEntity.ok(savedDocument);
+            
+            // Format response to match frontend Document state expectations
+            Map<String, Object> response = Map.of(
+                "id", savedDocument.getId().toString(),
+                "filename", savedDocument.getOriginalFilename(),
+                "type", "PDF",
+                "size", file.getSize(),
+                "uploadedAt", savedDocument.getUploadedAt().toString(),
+                "status", "Analyzed",
+                "extraction_method", savedDocument.getExtractionMethod(),
+                "extracted_text", savedDocument.getExtractedText()
+            );
+
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -97,8 +112,8 @@ public class DocumentController {
         }
     }
 
-    @GetMapping("/institutions/{institutionId}/documents")
-    public ResponseEntity<List<Document>> getDocumentsByInstitution(@PathVariable Long institutionId) {
+    @GetMapping({"/institutions/{institutionId}/documents", "/documents/{institutionId}"})
+    public ResponseEntity<?> getDocumentsByInstitution(@PathVariable(value = "institutionId") Long institutionId) {
         List<Document> documents = documentRepository.findByInstitutionId(institutionId);
         return ResponseEntity.ok(documents);
     }

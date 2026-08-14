@@ -22,7 +22,7 @@ spring:
         - id: core-backend-route
           uri: http://localhost:8081
           predicates:
-            - Path=/api/auth/**, /api/institutions/**, /api/inspections/**, /api/findings/**, /api/reports/**, /api/analytics/**
+            - Path=/api/auth/**, /api/institutions/**, /api/inspections/**, /api/findings/**, /api/reports/**, /api/analytics/**, /api/documents/**
 
         # Route AI Microservice APIs to Python FastAPI (Port 8000)
         - id: ai-service-route
