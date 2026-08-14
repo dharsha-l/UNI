@@ -15,7 +15,31 @@ A full-stack prototype for AI-driven institutional inspection, built for SIH/hac
 
 ---
 
-### Option 1: Run Enterprise Microservices Architecture (Recommended)
+### ⚡ One-Click Double-Tap Launchers (Easiest)
+
+Simply double-click (or run in terminal) the launcher script for your operating system:
+
+#### 🍏 macOS / 🐧 Linux:
+```bash
+./run.sh
+```
+
+#### 🪟 Windows:
+Double-click `run.bat` or run in CMD:
+```cmd
+run.bat
+```
+
+> **What the launcher automatically does for you:**
+> 1. ✅ Checks for Node.js, Python 3, and Java 21.
+> 2. ✅ Automatically installs `npm` and `pip` dependencies if missing.
+> 3. ✅ Creates Python virtual environment (`ai-service/venv`) automatically.
+> 4. ✅ Boots up Python FastAPI (`8000`), Spring Boot Core (`8081`), Spring Gateway (`8080`), and React Frontend (`5173`) concurrently.
+> 5. ✅ Automatically opens your default web browser to **http://localhost:5173**.
+
+---
+
+### Option 1: Manual Step-by-Step Launch
 
 Run each service in a separate terminal:
 
