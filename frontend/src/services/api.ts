@@ -1,6 +1,3 @@
-// API service layer - all calls go through here
-// Structured for easy swap to Python/FastAPI backend
-
 import axios from 'axios';
 
 const api = axios.create({
@@ -8,9 +5,35 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
+api.interceptors.request.use((config) => {
+  const userStr = localStorage.getItem('uninspection_user');
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    config.headers['x-user-id'] = user.id;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
 // Auth
 export const login = (email: string, password: string) =>
   api.post('/auth/login', { email, password }).then(r => r.data);
+
+export const logout = () =>
+  api.post('/auth/logout').then(r => {
+    localStorage.removeItem('uninspection_user');
+    return r.data;
+  });
+
+export const forgotPassword = (email: string) =>
+  api.post('/auth/forgot-password', { email }).then(r => r.data);
+
+export const resetPassword = (token: string, password: string) =>
+  api.post('/auth/reset-password', { token, password }).then(r => r.data);
+
+export const getMe = () =>
+  api.get('/auth/me').then(r => r.data);
 
 // Dashboard
 export const getDashboard = () =>
@@ -116,5 +139,21 @@ export const generateReport = (inspectionId: string) =>
 
 export const getReport = (inspectionId: string) =>
   api.get(`/reports/${inspectionId}`).then(r => r.data);
+
+// Admin
+export const getUsers = () =>
+  api.get('/admin/users').then(r => r.data);
+
+export const createUser = (data: any) =>
+  api.post('/admin/users', data).then(r => r.data);
+
+export const updateUser = (id: string, updates: any) =>
+  api.put(`/admin/users/${id}`, updates).then(r => r.data);
+
+export const deleteUser = (id: string) =>
+  api.delete(`/admin/users/${id}`).then(r => r.data);
+
+export const getAuditLogs = () =>
+  api.get('/admin/audit-logs').then(r => r.data);
 
 export default api;

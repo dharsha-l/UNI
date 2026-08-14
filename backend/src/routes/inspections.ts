@@ -1,20 +1,39 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { DB, insertRecord, updateRecord } from '../database';
 import { v4 as uuidv4 } from 'uuid';
 import { CrossVerificationService, RiskScoringService } from '../services/aiServices';
+import { authenticate, requireRoles, requireInstitutionMatch } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/', (req: Request, res: Response) => {
-  const inspections = DB.inspections.map(i => {
+// Middleware to check institution match based on inspection ID
+const requireInspectionInstitutionMatch = (req: Request, res: Response, next: NextFunction) => {
+  if (['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER'].includes(req.user!.role)) {
+    return next();
+  }
+  const insp = DB.inspections.find(i => i.id === req.params.id);
+  if (insp && req.user!.institutionId !== insp.institution_id) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  next();
+};
+
+router.get('/', authenticate, (req: Request, res: Response) => {
+  let inspections = [...DB.inspections];
+  
+  if (['INSTITUTION_ADMIN', 'INSTITUTION_STAFF'].includes(req.user!.role)) {
+    inspections = inspections.filter(i => i.institution_id === req.user!.institutionId);
+  }
+
+  const result = inspections.map(i => {
     const inst = DB.institutions.find(x => x.id === i.institution_id);
     const inspector = DB.users.find(x => x.id === i.inspector_id);
     return { ...i, institution_name: inst?.name, inspector_name: inspector?.name };
   }).sort((a, b) => b.created_at.localeCompare(a.created_at));
-  res.json(inspections);
+  res.json(result);
 });
 
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', authenticate, requireInspectionInstitutionMatch, (req: Request, res: Response) => {
   const insp = DB.inspections.find(i => i.id === req.params.id);
   if (!insp) return res.status(404).json({ error: 'Inspection not found' });
   const inst = DB.institutions.find(x => x.id === insp.institution_id);
@@ -22,7 +41,7 @@ router.get('/:id', (req: Request, res: Response) => {
   res.json({ ...insp, institution_name: inst?.name, inspector_name: inspector?.name });
 });
 
-router.post('/', (req: Request, res: Response) => {
+router.post('/', authenticate, requireRoles(['SUPER_ADMIN', 'INSPECTION_ADMIN']), (req: Request, res: Response) => {
   const id = uuidv4();
   const yearPart = new Date().getFullYear();
   const numPart = String(Math.floor(Math.random() * 900) + 100);
@@ -32,7 +51,7 @@ router.post('/', (req: Request, res: Response) => {
   res.json(record);
 });
 
-router.post('/:id/cross-verify', async (req: Request, res: Response) => {
+router.post('/:id/cross-verify', authenticate, requireRoles(['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER']), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const insp = DB.inspections.find(i => i.id === id);
@@ -58,7 +77,7 @@ router.post('/:id/cross-verify', async (req: Request, res: Response) => {
       // Don't re-add if already decided
       if (existingDecided.find(e => e.finding_number === f.finding_number)) continue;
       const fid = uuidv4();
-      DB.findings.push({ id: fid, inspection_id: id, finding_number: f.finding_number, category: f.category, title: f.title, description: f.description, evidence: JSON.stringify(f.evidence_sources), risk: f.risk, status: f.status, ai_confidence: f.ai_confidence, created_at: new Date().toISOString() });
+      DB.findings.push({ id: fid, inspection_id: id, finding_number: f.finding_number, category: f.category, title: f.title, description: f.description, evidence: JSON.stringify(f.evidence_sources), risk: f.risk, status: f.status, visibility: 'INTERNAL', ai_confidence: f.ai_confidence, created_at: new Date().toISOString() });
     }
 
     const allFindings = DB.findings.filter(f => f.inspection_id === id);

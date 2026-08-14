@@ -6,6 +6,7 @@ import {
   Brain, ChevronRight, Eye, ZoomIn, Package
 } from 'lucide-react';
 import { getImages, uploadImage, analyzeAllImages, getDetections } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const CATEGORIES = ['Laboratory', 'Classroom', 'Fire Safety', 'Accessibility', 'Library', 'Campus'];
 
@@ -39,6 +40,7 @@ const DEMO_BOXES: Record<string, Array<{ label: string; conf: number; x: number;
 const VisualEvidencePage: React.FC = () => {
   const { id: inspectionId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
   const [images, setImages] = useState<any[]>([]);
   const [detections, setDetections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +49,8 @@ const VisualEvidencePage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('Laboratory');
   const [selectedImage, setSelectedImage] = useState<any>(null);
   const [showDetections, setShowDetections] = useState(false);
+
+  const isInstitution = hasRole(['INSTITUTION_ADMIN', 'INSTITUTION_STAFF']);
 
   const yoloSteps = ['Loading YOLO v8 model...', 'Detecting infrastructure objects...', 'Calculating confidence scores...', 'Generating visual evidence overlays...', 'Analysis complete!'];
 
@@ -107,18 +111,22 @@ const VisualEvidencePage: React.FC = () => {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <button onClick={() => navigate(`/inspections/${inspectionId}`)} className="flex items-center gap-2 text-slate-500 hover:text-slate-700 mb-6 text-sm">
-        <ArrowLeft size={16} /> Back to Inspection
-      </button>
+      {inspectionId && !isInstitution && (
+        <button onClick={() => navigate(`/inspections/${inspectionId}`)} className="flex items-center gap-2 text-slate-500 hover:text-slate-700 mb-6 text-sm">
+          <ArrowLeft size={16} /> Back to Inspection
+        </button>
+      )}
 
       <div className="section-header mb-6">
         <div>
           <h1 className="section-title text-2xl">Visual Evidence</h1>
-          <p className="section-subtitle">Upload campus and facility photographs for AI object detection</p>
+          <p className="section-subtitle">Upload campus and facility photographs</p>
         </div>
-        <button onClick={handleAnalyzeAll} disabled={analyzing} className="btn btn-primary">
-          <Brain size={16} /> {analyzing ? 'Analyzing...' : 'Run Visual AI Analysis'}
-        </button>
+        {!isInstitution && (
+          <button onClick={handleAnalyzeAll} disabled={analyzing} className="btn btn-primary">
+            <Brain size={16} /> {analyzing ? 'Analyzing...' : 'Run Visual AI Analysis'}
+          </button>
+        )}
       </div>
 
       {/* Category selector */}
@@ -127,7 +135,7 @@ const VisualEvidencePage: React.FC = () => {
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`badge cursor-pointer transition-all ${selectedCategory === cat ? 'badge-blue' : 'badge-gray'}`}
+            className={`badge cursor-pointer transition-all ${selectedCategory === cat ? (isInstitution ? 'badge-low' : 'badge-blue') : 'badge-gray'}`}
           >
             {cat}
           </button>
@@ -145,7 +153,7 @@ const VisualEvidencePage: React.FC = () => {
       </div>
 
       {/* YOLO Processing */}
-      {analyzing && (
+      {analyzing && !isInstitution && (
         <div className="card p-6 mb-6 border-blue-200 animate-fade-in">
           <div className="flex items-center gap-3 mb-4">
             <div className="ai-label"><Brain size={12} />YOLO AI Analysis</div>
@@ -162,14 +170,14 @@ const VisualEvidencePage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Image list */}
-        <div>
-          <h2 className="section-title mb-3">Uploaded Images ({images.length})</h2>
-          <div className="space-y-2">
+        <div className={isInstitution ? 'lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : ''}>
+          {!isInstitution && <h2 className="section-title mb-3">Uploaded Images ({images.length})</h2>}
+          <div className={isInstitution ? 'contents' : 'space-y-2'}>
             {images.map(img => (
               <div
                 key={img.id}
-                onClick={() => setSelectedImage(img)}
-                className={`card p-3 flex items-center gap-3 cursor-pointer transition-all ${selectedImage?.id === img.id ? 'border-blue-400 bg-blue-50' : ''}`}
+                onClick={() => !isInstitution && setSelectedImage(img)}
+                className={`card p-3 flex items-center gap-3 ${!isInstitution ? 'cursor-pointer transition-all' : ''} ${selectedImage?.id === img.id && !isInstitution ? 'border-blue-400 bg-blue-50' : ''}`}
               >
                 <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <Camera size={20} className="text-slate-400" />
@@ -187,7 +195,7 @@ const VisualEvidencePage: React.FC = () => {
               </div>
             ))}
             {images.length === 0 && (
-              <div className="card p-6 text-center">
+              <div className="card p-6 text-center col-span-full">
                 <Camera size={24} className="text-slate-300 mx-auto mb-2" />
                 <p className="text-slate-400 text-sm">No images uploaded</p>
               </div>
@@ -196,114 +204,116 @@ const VisualEvidencePage: React.FC = () => {
         </div>
 
         {/* Image viewer with YOLO overlay */}
-        <div className="lg:col-span-2">
-          {selectedImage ? (
-            <div className="card overflow-hidden">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-slate-900">{selectedImage.filename}</div>
-                  <div className="text-xs text-slate-400">{selectedImage.category} · {selectedImage.status}</div>
-                </div>
-                {showDetections && <div className="ai-label"><Brain size={11} />YOLO Detected</div>}
-              </div>
-
-              {/* Simulated image with bounding boxes */}
-              <div className="relative bg-slate-900" style={{ height: 320 }}>
-                {/* Placeholder image */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-700 flex items-center justify-center">
-                    <div className="text-center">
-                      <Camera size={48} className="text-slate-600 mx-auto mb-2" />
-                      <div className="text-slate-400 text-sm">{selectedImage.filename}</div>
-                      <div className="text-slate-500 text-xs mt-1">{selectedImage.category}</div>
-                    </div>
+        {!isInstitution && (
+          <div className="lg:col-span-2">
+            {selectedImage ? (
+              <div className="card overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-slate-900">{selectedImage.filename}</div>
+                    <div className="text-xs text-slate-400">{selectedImage.category} · {selectedImage.status}</div>
                   </div>
+                  {showDetections && <div className="ai-label"><Brain size={11} />YOLO Detected</div>}
                 </div>
 
-                {/* YOLO Bounding box overlays */}
-                {showDetections && getDemoBoxes(selectedImage).map((box, i) => (
-                  <div
-                    key={i}
-                    className="detection-box"
-                    style={{
-                      left: `${box.x}%`,
-                      top: `${box.y}%`,
-                      width: `${box.w}%`,
-                      height: `${box.h}%`,
-                      borderColor: box.color,
-                      background: `${box.color}10`,
-                    }}
-                  >
-                    <div
-                      className="detection-label"
-                      style={{ background: box.color, fontSize: 10 }}
-                    >
-                      {box.label} {box.conf}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Detection results */}
-              {showDetections && (
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="ai-label"><Brain size={11} />AI Analysis</div>
-                    <span className="text-sm font-semibold text-slate-700">Detected Objects</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {getDemoBoxes(selectedImage).map((box, i) => (
-                      <div key={i} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-sm" style={{ background: box.color }} />
-                          <span className="text-xs font-medium text-slate-700">{box.label}</span>
-                        </div>
-                        <span className="text-xs font-bold text-slate-600">{box.conf}%</span>
+                {/* Simulated image with bounding boxes */}
+                <div className="relative bg-slate-900" style={{ height: 320 }}>
+                  {/* Placeholder image */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-700 flex items-center justify-center">
+                      <div className="text-center">
+                        <Camera size={48} className="text-slate-600 mx-auto mb-2" />
+                        <div className="text-slate-400 text-sm">{selectedImage.filename}</div>
+                        <div className="text-slate-500 text-xs mt-1">{selectedImage.category}</div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-slate-100">
-                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                      ⚠️ Visual evidence shows objects in uploaded photos only. This does not verify the total institutional count.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="card p-12 text-center">
-              <Eye size={40} className="text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-400">Select an image to view analysis</p>
-            </div>
-          )}
-
-          {/* Detection summary */}
-          {showDetections && Object.keys(detectionCounts).length > 0 && (
-            <div className="card p-5 mt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="ai-label"><Brain size={11} />YOLO AI</div>
-                <span className="text-sm font-semibold text-slate-700">Overall Detection Summary</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {Object.entries(detectionCounts).map(([type, count]) => (
-                  <div key={type} className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
-                    <Package size={14} className="text-blue-500" />
-                    <div>
-                      <div className="text-xs text-slate-500">{type}</div>
-                      <div className="font-bold text-slate-800">{count} detected</div>
                     </div>
                   </div>
-                ))}
+
+                  {/* YOLO Bounding box overlays */}
+                  {showDetections && getDemoBoxes(selectedImage).map((box, i) => (
+                    <div
+                      key={i}
+                      className="detection-box"
+                      style={{
+                        left: `${box.x}%`,
+                        top: `${box.y}%`,
+                        width: `${box.w}%`,
+                        height: `${box.h}%`,
+                        borderColor: box.color,
+                        background: `${box.color}10`,
+                      }}
+                    >
+                      <div
+                        className="detection-label"
+                        style={{ background: box.color, fontSize: 10 }}
+                      >
+                        {box.label} {box.conf}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Detection results */}
+                {showDetections && (
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="ai-label"><Brain size={11} />AI Analysis</div>
+                      <span className="text-sm font-semibold text-slate-700">Detected Objects</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {getDemoBoxes(selectedImage).map((box, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-sm" style={{ background: box.color }} />
+                            <span className="text-xs font-medium text-slate-700">{box.label}</span>
+                          </div>
+                          <span className="text-xs font-bold text-slate-600">{box.conf}%</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                        ⚠️ Visual evidence shows objects in uploaded photos only. This does not verify the total institutional count.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-slate-400 mt-3">
-                ⚠️ Detected objects are from uploaded images only. Insufficient to verify total institutional inventory.
-              </p>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="card p-12 text-center">
+                <Eye size={40} className="text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-400">Select an image to view analysis</p>
+              </div>
+            )}
+
+            {/* Detection summary */}
+            {showDetections && Object.keys(detectionCounts).length > 0 && (
+              <div className="card p-5 mt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="ai-label"><Brain size={11} />YOLO AI</div>
+                  <span className="text-sm font-semibold text-slate-700">Overall Detection Summary</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {Object.entries(detectionCounts).map(([type, count]) => (
+                    <div key={type} className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+                      <Package size={14} className="text-blue-500" />
+                      <div>
+                        <div className="text-xs text-slate-500">{type}</div>
+                        <div className="font-bold text-slate-800">{count} detected</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 mt-3">
+                  ⚠️ Detected objects are from uploaded images only. Insufficient to verify total institutional inventory.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {showDetections && (
+      {showDetections && !isInstitution && (
         <div className="mt-6 flex justify-end">
           <button onClick={() => navigate(`/inspections/${inspectionId}/verify`)} className="btn btn-primary">
             Next: AI Cross-Verification <ChevronRight size={16} />

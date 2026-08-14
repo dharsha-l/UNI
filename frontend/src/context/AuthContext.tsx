@@ -5,6 +5,7 @@ interface User {
   name: string;
   email: string;
   role: string;
+  institutionId?: string;
 }
 
 interface AuthContextType {
@@ -12,6 +13,7 @@ interface AuthContextType {
   login: (user: User) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  hasRole: (roles: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,26 +21,32 @@ const AuthContext = createContext<AuthContextType>({
   login: () => {},
   logout: () => {},
   isAuthenticated: false,
+  hasRole: () => false,
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('inspectai_user');
+    const stored = localStorage.getItem('uninspection_user');
     return stored ? JSON.parse(stored) : null;
   });
 
   const login = (u: User) => {
     setUser(u);
-    localStorage.setItem('inspectai_user', JSON.stringify(u));
+    localStorage.setItem('uninspection_user', JSON.stringify(u));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('inspectai_user');
+    localStorage.removeItem('uninspection_user');
+  };
+
+  const hasRole = (roles: string[]) => {
+    if (!user) return false;
+    return roles.includes(user.role);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,6 +6,7 @@ import {
   ArrowLeft, Brain, ChevronRight, AlertCircle, File
 } from 'lucide-react';
 import { getDocuments, uploadDocument, analyzeAllDocuments, getClaims } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const statusIcon = (status: string) => {
   if (status === 'Analyzed') return <CheckCircle2 size={14} className="text-green-600" />;
@@ -29,6 +30,7 @@ const ProcessingStep: React.FC<{ text: string; done: boolean; active: boolean }>
 const DocumentEvidencePage: React.FC = () => {
   const { id: inspectionId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
   const [documents, setDocuments] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,8 @@ const DocumentEvidencePage: React.FC = () => {
   const [analysisStep, setAnalysisStep] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [showClaims, setShowClaims] = useState(false);
+
+  const isInstitution = hasRole(['INSTITUTION_ADMIN', 'INSTITUTION_STAFF']);
 
   const steps = ['Reading documents...', 'Extracting text...', 'Identifying institutional claims...', 'Structuring evidence...', 'Analysis complete!'];
 
@@ -115,21 +119,23 @@ const DocumentEvidencePage: React.FC = () => {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <button onClick={() => navigate(`/inspections/${inspectionId}`)} className="flex items-center gap-2 text-slate-500 hover:text-slate-700 mb-6 text-sm">
-        <ArrowLeft size={16} /> Back to Inspection
-      </button>
+      {inspectionId && !isInstitution && (
+        <button onClick={() => navigate(`/inspections/${inspectionId}`)} className="flex items-center gap-2 text-slate-500 hover:text-slate-700 mb-6 text-sm">
+          <ArrowLeft size={16} /> Back to Inspection
+        </button>
+      )}
 
       <div className="section-header mb-6">
         <div>
           <h1 className="section-title text-2xl">Document Evidence</h1>
           <p className="section-subtitle">Upload SSR, certificates, reports and other institutional documents</p>
         </div>
-        {documents.some(d => d.status !== 'Analyzed') && !analyzing && (
+        {!isInstitution && documents.some(d => d.status !== 'Analyzed') && !analyzing && (
           <button onClick={handleAnalyzeAll} className="btn btn-primary">
             <Brain size={16} /> Run Document Analysis
           </button>
         )}
-        {documents.every(d => d.status === 'Analyzed') && documents.length > 0 && (
+        {!isInstitution && documents.every(d => d.status === 'Analyzed') && documents.length > 0 && (
           <button onClick={handleAnalyzeAll} className="btn btn-secondary">
             <Brain size={16} /> Re-analyze Documents
           </button>
@@ -147,7 +153,7 @@ const DocumentEvidencePage: React.FC = () => {
       </div>
 
       {/* AI Processing animation */}
-      {analyzing && (
+      {analyzing && !isInstitution && (
         <div className="card p-6 mb-6 border-blue-200 animate-fade-in">
           <div className="flex items-center gap-3 mb-4">
             <div className="ai-label">
@@ -167,7 +173,7 @@ const DocumentEvidencePage: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 ${isInstitution ? '' : 'lg:grid-cols-2'} gap-6`}>
         {/* Documents */}
         <div>
           <h2 className="section-title mb-4">Uploaded Documents ({documents.length})</h2>
@@ -181,7 +187,7 @@ const DocumentEvidencePage: React.FC = () => {
               <p className="text-slate-400">No documents uploaded yet</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className={`grid grid-cols-1 ${isInstitution ? 'md:grid-cols-2' : ''} gap-3`}>
               {documents.map(doc => (
                 <div key={doc.id || doc.filename} className="card p-4 flex flex-col gap-2">
                   <div className="flex items-center gap-3">
@@ -218,50 +224,49 @@ const DocumentEvidencePage: React.FC = () => {
         </div>
 
         {/* Extracted Claims */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="section-title">AI Extracted Claims</h2>
-            <div className="ai-label"><Brain size={11} /> AI Analysis</div>
+        {!isInstitution && (
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="section-title">AI Extracted Claims</h2>
+              <div className="ai-label"><Brain size={11} /> AI Analysis</div>
+            </div>
+            {!showClaims ? (
+              <div className="card p-8 text-center">
+                <AlertCircle size={32} className="text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-400 text-sm">Run document analysis to extract claims</p>
+              </div>
+            ) : claims.length === 0 ? (
+              <div className="card p-8 text-center">
+                <p className="text-slate-400 text-sm">No claims extracted yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                {claims.map(claim => (
+                  <div key={claim.id} className="card p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="badge badge-gray text-xs">{claim.category}</span>
+                        </div>
+                        <div className="font-semibold text-slate-800 text-sm">{claim.claim_name}</div>
+                        <div className="text-blue-700 font-bold text-lg mt-0.5">{claim.value}</div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-xs text-slate-400">Confidence</div>
+                        <div className={`text-sm font-bold ${claim.confidence >= 0.95 ? 'text-green-600' : claim.confidence >= 0.85 ? 'text-amber-600' : 'text-red-600'}`}>
+                          {Math.round(claim.confidence * 100)}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-3 text-xs text-slate-400">
+                      <span className="flex items-center gap-1"><File size={11} />{claim.source_document}</span>
+                      <span>Page {claim.page_number}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {!showClaims && claims.length === 0 ? (
-            <div className="card p-8 text-center">
-              <AlertCircle size={32} className="text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-400 text-sm">Run document analysis or upload a document to view extracted claims</p>
-            </div>
-          ) : claims.length === 0 ? (
-            <div className="card p-8 text-center">
-              <p className="text-slate-400 text-sm">No claims extracted yet</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-              {claims.map(claim => (
-                <div key={claim.id} className="card p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="badge badge-gray text-xs">{claim.category}</span>
-                      </div>
-                      <div className="font-semibold text-slate-800 text-sm">{claim.claim_name}</div>
-                      <div className="text-blue-700 font-bold text-lg mt-0.5">{claim.value}</div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-xs text-slate-400">Confidence</div>
-                      <div className={`text-sm font-bold ${claim.confidence >= 0.95 ? 'text-green-600' : claim.confidence >= 0.85 ? 'text-amber-600' : 'text-red-600'}`}>
-                        {Math.round(claim.confidence * 100)}%
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-3 text-xs text-slate-400">
-                    <span className="flex items-center gap-1"><File size={11} />{claim.source_document}</span>
-                    <span>Page {claim.page_number}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
       {(showClaims || claims.length > 0) && (
         <div className="mt-6 flex justify-end">
           <button
