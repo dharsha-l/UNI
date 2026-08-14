@@ -73,9 +73,12 @@ Spring Cloud Gateway (Java 21 - Port 8080)
 
 Below is the user-approved, high-payoff execution sequence designed for maximum demo impact and risk reduction:
 
-### 1️⃣ Step 1: Real Document OCR Extraction (Lowest Risk, Highest Payoff)
-- **Goal**: Replace mock document extraction in `ai-service/main.py` with real `pypdf`/`pdfplumber` text parsing and `pytesseract` fallback for scanned pages.
-- **Payoff**: Instantly makes document analysis real instead of hardcoded.
+### 1️⃣ Step 1: Hybrid Real Document Extraction (Gemini Vision + pdfplumber + PyTesseract Backup)
+- **Goal**: Upgrade `ai-service/main.py` to use a 3-Tier Hybrid Extraction engine:
+  1. **Tier 1 (Digital PDFs)**: Fast, free local text & table extraction via `pdfplumber`/`pypdf`.
+  2. **Tier 2 (Scanned PDFs & Complex Layouts)**: Gemini Vision API (`google-genai`) to extract structured claims JSON directly without writing brittle regex.
+  3. **Tier 3 (Offline Fallback)**: OpenCV preprocessed PyTesseract (`grayscale` + `thresholding` + `deskew`) as a 100% self-hosted fallback.
+- **Payoff**: Solves messy scanned document parsing cleanly while eliminating manual regex rules.
 
 ### 2️⃣ Step 2: One Working YOLO Detector End-to-End (Fire Extinguisher Focus)
 - **Goal**: Implement a narrow, 100% real YOLOv8 object detector specifically targeting Fire Extinguishers in facility photos.
