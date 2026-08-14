@@ -49,6 +49,7 @@ def extract_text_via_gemini(pdf_path: str) -> Dict[str, Any]:
         return {"success": False, "reason": "genai_package_missing"}
 
     try:
+        logger.info(f"Calling Gemini API for {pdf_path}...")
         client = genai.Client(api_key=api_key)
         
         with open(pdf_path, "rb") as f:
@@ -61,7 +62,7 @@ def extract_text_via_gemini(pdf_path: str) -> Dict[str, Any]:
         )
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.6-flash",
             contents=[
                 types.Part.from_bytes(
                     data=pdf_bytes,
@@ -72,6 +73,8 @@ def extract_text_via_gemini(pdf_path: str) -> Dict[str, Any]:
         )
 
         raw_output = response.text.strip() if response.text else ""
+        logger.info(f"Gemini responded with {len(raw_output)} characters")
+        logger.info(f"Raw response preview: {raw_output[:200]}")
         
         # Clean markdown formatting if present
         clean_text = raw_output
