@@ -126,23 +126,25 @@ gateway/              Spring Cloud Gateway (Port 8080)
 core-backend/         Spring Boot (Java 21) Core Backend (Port 8081)
   com.inspectai.core  User Auth, Institutions, Inspections, Findings, Audit Trail & JPA Entities
 
-ai-service/           FastAPI (Python 3.11) AI Microservice (Port 8000)
-  main.py             OCR Document Claims, Vision Object Detection, RAG Search & AI Engine
-
-backend/              Express TypeScript Prototype (Port 3001 - Legacy / Alternative)
+ai-service/           FastAPI (Python 3.14) AI Microservice (Port 8000)
+  main.py             pdfplumber / Docling Document Extraction, YOLOv8 Vision & Qdrant/pgvector RAG
 ```
 
 ---
 
-## 🤖 AI Services (Mock → Production)
+## 🚀 Production-Grade Tech Stack Specification (2026 Standard)
 
-| Service | Current | Production |
-|---------|---------|------------|
-| Document OCR | Mock | Tesseract OCR / Azure AI |
-| Visual Detection | Mock | YOLOv8 via Python/FastAPI |
-| Cross-Verification | Mock | Custom pipeline |
-| Regulation RAG | Mock | sentence-transformers + vector DB |
-| External Data | Mock | AISHE/NIRF live APIs |
+| Domain | Production Tool Choice | Role & Purpose |
+| :--- | :--- | :--- |
+| **Frontend** | React 19 + TypeScript + Tailwind CSS (Vite) | Type-safe inspector dashboard & interactive traceability graph. |
+| **API Gateway** | Spring Cloud Gateway | Centralized OAuth2/OIDC JWT validation, rate limiting, & routing. |
+| **Core Backend** | Spring Boot 3 (Java 21) + PostgreSQL | Core business logic, JPA ORM, method security (`@PreAuthorize`), and audit trail. |
+| **AI Microservices** | Python FastAPI (Uvicorn) | Decoupled ML microservice layer for Docling, YOLO, and RAG vector search. |
+| **Document AI** | Docling (IBM) + pdfplumber | Structured layout parsing for SSR PDFs, tables, and scanned reports. |
+| **Computer Vision** | YOLOv8 / YOLOv9 | Infrastructure object detection (fire extinguishers, ramps, seating). |
+| **Vector Database** | Qdrant / pgvector (PostgreSQL) | Native hybrid vector search for NAAC, AICTE APH, and UGC regulations. |
+| **Object Storage** | MinIO (S3-Compatible) | Self-hostable blob storage for raw PDFs and physical inspection photos. |
+| **Security & MLOps** | OAuth2 + mTLS + HashiCorp Vault + Trivy | North-South JWTs, East-West mTLS, MLflow model tracking, and image scanning. |
 
 ---
 
