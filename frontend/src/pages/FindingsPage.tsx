@@ -2,8 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle, Filter, ChevronRight, Brain, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { getFindings } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
-const statusLabel = (s: string) => s.replace(/_/g, ' ');
+const statusLabel = (s: string) => {
+  const map: Record<string, string> = {
+    MISMATCH: 'Mismatch Detected',
+    MINOR_MISMATCH: 'Minor Mismatch',
+    CONSISTENT: 'Consistent',
+    INSUFFICIENT_EVIDENCE: 'Insufficient Evidence',
+    REQUIRES_VERIFICATION: 'Requires Verification',
+    POTENTIAL_MISMATCH: 'Potential Discrepancy',
+    MISSING_EVIDENCE: 'Missing Evidence',
+  };
+  return map[s] || s.replace(/_/g, ' ');
+};
 
 const statusColor = (status: string) => {
   const map: Record<string, string> = {
@@ -12,6 +24,8 @@ const statusColor = (status: string) => {
     CONSISTENT: 'text-green-600 bg-green-50 border-green-200',
     INSUFFICIENT_EVIDENCE: 'text-amber-600 bg-amber-50 border-amber-200',
     REQUIRES_VERIFICATION: 'text-blue-600 bg-blue-50 border-blue-200',
+    POTENTIAL_MISMATCH: 'text-red-600 bg-red-50 border-red-200',
+    MISSING_EVIDENCE: 'text-amber-600 bg-amber-50 border-amber-200',
   };
   return map[status] || 'text-slate-600 bg-slate-50 border-slate-200';
 };
@@ -21,9 +35,12 @@ type Filter = 'All' | 'High' | 'Medium' | 'Low' | 'Accepted' | 'Pending' | 'Over
 const FindingsPage: React.FC = () => {
   const { id: inspectionId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
   const [findings, setFindings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('All');
+
+  const isInstitution = hasRole(['INSTITUTION_ADMIN', 'INSTITUTION_STAFF']);
 
   useEffect(() => {
     if (!inspectionId) return;
@@ -53,10 +70,10 @@ const FindingsPage: React.FC = () => {
       <div className="section-header mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="section-title text-2xl">Findings</h1>
-            <div className="ai-label"><Brain size={12} />AI Generated</div>
+            <h1 className="section-title text-2xl">{isInstitution ? 'Inspection Findings' : 'Findings'}</h1>
+            {!isInstitution && <div className="ai-label"><Brain size={12} />AI Generated</div>}
           </div>
-          <p className="section-subtitle">Review AI findings and make inspector decisions</p>
+          <p className="section-subtitle">{isInstitution ? 'Review potential discrepancies raised during inspection' : 'Review AI findings and make inspector decisions'}</p>
         </div>
       </div>
 
@@ -88,7 +105,7 @@ const FindingsPage: React.FC = () => {
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin-slow" style={{ borderWidth: 2 }} />
+          <div className={`w-8 h-8 border-2 ${isInstitution ? 'border-emerald-200 border-t-emerald-600' : 'border-blue-200 border-t-blue-600'} rounded-full animate-spin-slow`} style={{ borderWidth: 2 }} />
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -100,15 +117,15 @@ const FindingsPage: React.FC = () => {
                 <th>Description</th>
                 <th>Status</th>
                 <th>Risk</th>
-                <th>AI Confidence</th>
-                <th>Inspector Decision</th>
+                {!isInstitution && <th>AI Confidence</th>}
+                <th>{isInstitution ? 'Final Resolution' : 'Inspector Decision'}</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
+                  <td colSpan={isInstitution ? 7 : 8} className="text-center py-12 text-slate-400">
                     No findings match the selected filter
                   </td>
                 </tr>
@@ -133,16 +150,18 @@ const FindingsPage: React.FC = () => {
                       {f.risk}
                     </span>
                   </td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <div className="progress-bar-container w-12">
-                        <div className="progress-bar-fill bg-blue-500" style={{ width: `${f.ai_confidence * 100}%` }} />
+                  {!isInstitution && (
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <div className="progress-bar-container w-12">
+                          <div className="progress-bar-fill bg-blue-500" style={{ width: `${f.ai_confidence * 100}%` }} />
+                        </div>
+                        <span className="text-xs font-medium text-slate-600">
+                          {Math.round(f.ai_confidence * 100)}%
+                        </span>
                       </div>
-                      <span className="text-xs font-medium text-slate-600">
-                        {Math.round(f.ai_confidence * 100)}%
-                      </span>
-                    </div>
-                  </td>
+                    </td>
+                  )}
                   <td>
                     {f.inspector_decision ? (
                       <div className="flex items-center gap-1.5">

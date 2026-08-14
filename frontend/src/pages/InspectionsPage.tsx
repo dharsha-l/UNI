@@ -6,14 +6,14 @@ import { useAuth } from '../context/AuthContext';
 
 const CATEGORIES = ['Institutional Data', 'Infrastructure', 'Fire Safety', 'Accessibility', 'Academic Facilities', 'Student Data', 'Faculty Data'];
 
-const statusBadge = (status: string) => {
-  const map: Record<string, string> = { 'In Progress': 'badge-blue', Completed: 'badge-low', Pending: 'badge-gray' };
+const statusBadge = (status: string, isInstitution: boolean) => {
+  const map: Record<string, string> = { 'In Progress': isInstitution ? 'badge-low' : 'badge-blue', Completed: 'badge-low', Pending: 'badge-gray' };
   return <span className={`badge ${map[status] || 'badge-gray'}`}>{status}</span>;
 };
 
 const InspectionsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const [inspections, setInspections] = useState<any[]>([]);
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -24,6 +24,8 @@ const InspectionsPage: React.FC = () => {
     inspection_date: '2026-08-12',
     categories: CATEGORIES,
   });
+
+  const isInstitution = hasRole(['INSTITUTION_ADMIN', 'INSTITUTION_STAFF']);
 
   useEffect(() => {
     Promise.all([getInspections(), getInstitutions()]).then(([insps, insts]) => {
@@ -62,15 +64,17 @@ const InspectionsPage: React.FC = () => {
       <div className="section-header mb-6">
         <div>
           <h1 className="section-title text-2xl">Inspections</h1>
-          <p className="section-subtitle">Create and manage institutional inspections</p>
+          <p className="section-subtitle">{isInstitution ? 'View your institution\'s inspections' : 'Create and manage institutional inspections'}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreate(!showCreate)}>
-          <Plus size={16} /> New Inspection
-        </button>
+        {!isInstitution && (
+          <button className="btn btn-primary" onClick={() => setShowCreate(!showCreate)}>
+            <Plus size={16} /> New Inspection
+          </button>
+        )}
       </div>
 
       {/* Create form */}
-      {showCreate && (
+      {showCreate && !isInstitution && (
         <div className="card p-6 mb-6 animate-fade-in border-blue-200">
           <h2 className="section-title mb-5">Create New Inspection</h2>
           <form onSubmit={handleCreate} className="space-y-5">
@@ -127,7 +131,7 @@ const InspectionsPage: React.FC = () => {
       {/* Inspections list */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin-slow" style={{ borderWidth: 2 }} />
+          <div className={`w-8 h-8 border-2 ${isInstitution ? 'border-emerald-200 border-t-emerald-600' : 'border-blue-200 border-t-blue-600'} rounded-full animate-spin-slow`} style={{ borderWidth: 2 }} />
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -138,7 +142,7 @@ const InspectionsPage: React.FC = () => {
                 <th>Inspection ID</th>
                 <th>Inspector</th>
                 <th>Date</th>
-                <th>Risk Score</th>
+                {!isInstitution && <th>Risk Score</th>}
                 <th>Status</th>
                 <th></th>
               </tr>
@@ -152,7 +156,7 @@ const InspectionsPage: React.FC = () => {
                       <span className="font-medium text-slate-900">{insp.institution_name}</span>
                     </div>
                   </td>
-                  <td className="font-mono text-sm text-blue-600">{insp.inspection_id}</td>
+                  <td className={`font-mono text-sm ${isInstitution ? 'text-emerald-600' : 'text-blue-600'}`}>{insp.inspection_id}</td>
                   <td>
                     <div className="flex items-center gap-1.5 text-sm text-slate-500">
                       <User size={13} className="text-slate-400" />
@@ -165,31 +169,33 @@ const InspectionsPage: React.FC = () => {
                       {insp.inspection_date}
                     </div>
                   </td>
-                  <td>
-                    {insp.risk_score > 0 ? (
-                      <div className="flex items-center gap-2">
-                        <div className="progress-bar-container w-16">
-                          <div
-                            className="progress-bar-fill"
-                            style={{
-                              width: `${insp.risk_score}%`,
-                              background: insp.risk_level === 'High' ? '#dc2626' : insp.risk_level === 'Medium' ? '#d97706' : '#16a34a'
-                            }}
-                          />
+                  {!isInstitution && (
+                    <td>
+                      {insp.risk_score > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <div className="progress-bar-container w-16">
+                            <div
+                              className="progress-bar-fill"
+                              style={{
+                                width: `${insp.risk_score}%`,
+                                background: insp.risk_level === 'High' ? '#dc2626' : insp.risk_level === 'Medium' ? '#d97706' : '#16a34a'
+                              }}
+                            />
+                          </div>
+                          <span className={`font-bold text-sm ${insp.risk_level === 'High' ? 'text-red-600' : insp.risk_level === 'Medium' ? 'text-amber-600' : 'text-green-600'}`}>
+                            {insp.risk_score}
+                          </span>
                         </div>
-                        <span className={`font-bold text-sm ${insp.risk_level === 'High' ? 'text-red-600' : insp.risk_level === 'Medium' ? 'text-amber-600' : 'text-green-600'}`}>
-                          {insp.risk_score}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-slate-300 text-sm">—</span>
-                    )}
-                  </td>
-                  <td>{statusBadge(insp.status)}</td>
+                      ) : (
+                        <span className="text-slate-300 text-sm">—</span>
+                      )}
+                    </td>
+                  )}
+                  <td>{statusBadge(insp.status, isInstitution)}</td>
                   <td>
                     <button
                       onClick={e => { e.stopPropagation(); navigate(`/inspections/${insp.id}`); }}
-                      className="text-blue-600 hover:text-blue-800"
+                      className={`${isInstitution ? 'text-emerald-600 hover:text-emerald-800' : 'text-blue-600 hover:text-blue-800'}`}
                     >
                       <ChevronRight size={16} />
                     </button>

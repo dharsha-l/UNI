@@ -5,21 +5,25 @@ import {
   Eye, Brain, AlertTriangle, FileText, ChevronRight, CheckCircle2, Clock, XCircle
 } from 'lucide-react';
 import { getInspection, getFindings } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const steps = [
   { label: 'Document Evidence', icon: FileStack, path: 'documents' },
   { label: 'Visual Evidence', icon: Eye, path: 'images' },
-  { label: 'AI Cross-Verification', icon: Brain, path: 'verify' },
+  { label: 'AI Cross-Verification', icon: Brain, path: 'verify', inspectorOnly: true },
   { label: 'Findings Review', icon: AlertTriangle, path: 'findings' },
-  { label: 'Generate Report', icon: FileText, path: 'report' },
+  { label: 'Generate Report', icon: FileText, path: 'report', inspectorOnly: true },
 ];
 
 const InspectionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
   const [inspection, setInspection] = useState<any>(null);
   const [findings, setFindings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const isInstitution = hasRole(['INSTITUTION_ADMIN', 'INSTITUTION_STAFF']);
 
   useEffect(() => {
     if (!id) return;
@@ -32,7 +36,7 @@ const InspectionDetailPage: React.FC = () => {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin-slow" style={{ borderWidth: 2 }} />
+      <div className={`w-8 h-8 border-2 ${isInstitution ? 'border-emerald-200 border-t-emerald-600' : 'border-blue-200 border-t-blue-600'} rounded-full animate-spin-slow`} style={{ borderWidth: 2 }} />
     </div>
   );
 
@@ -42,6 +46,8 @@ const InspectionDetailPage: React.FC = () => {
   const highRisk = findings.filter(f => f.risk === 'High').length;
   const pending = findings.filter(f => !f.inspector_decision).length;
   const decided = findings.filter(f => f.inspector_decision).length;
+
+  const visibleSteps = steps.filter(s => !isInstitution || !s.inspectorOnly);
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -54,24 +60,24 @@ const InspectionDetailPage: React.FC = () => {
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+              <div className={`w-10 h-10 ${isInstitution ? 'bg-emerald-600' : 'bg-blue-600'} rounded-xl flex items-center justify-center`}>
                 <ClipboardList size={20} className="text-white" />
               </div>
               <div>
-                <div className="text-xs font-mono text-blue-600 font-bold">{inspection.inspection_id}</div>
+                <div className={`text-xs font-mono ${isInstitution ? 'text-emerald-600' : 'text-blue-600'} font-bold`}>{inspection.inspection_id}</div>
                 <h1 className="text-xl font-bold text-slate-900">{inspection.institution_name}</h1>
               </div>
             </div>
             <div className="flex flex-wrap gap-4 text-sm text-slate-500 mt-3">
               <div className="flex items-center gap-1.5"><Calendar size={13} /> {inspection.inspection_date}</div>
               <div className="flex items-center gap-1.5"><User size={13} /> {inspection.inspector_name}</div>
-              <span className={`badge ${inspection.status === 'In Progress' ? 'badge-blue' : inspection.status === 'Completed' ? 'badge-low' : 'badge-gray'}`}>
+              <span className={`badge ${inspection.status === 'In Progress' ? (isInstitution ? 'badge-low' : 'badge-blue') : inspection.status === 'Completed' ? 'badge-low' : 'badge-gray'}`}>
                 {inspection.status}
               </span>
             </div>
           </div>
 
-          {inspection.risk_score > 0 && (
+          {!isInstitution && inspection.risk_score > 0 && (
             <div className="text-center">
               <div className={`text-4xl font-bold ${inspection.risk_level === 'High' ? 'text-red-600' : inspection.risk_level === 'Medium' ? 'text-amber-600' : 'text-green-600'}`}>
                 {inspection.risk_score}
@@ -94,21 +100,21 @@ const InspectionDetailPage: React.FC = () => {
 
       {/* Workflow steps */}
       <div className="card p-6 mb-6">
-        <h2 className="section-title mb-5">Inspection Workflow</h2>
+        <h2 className="section-title mb-5">{isInstitution ? 'Evidence Submission & Findings' : 'Inspection Workflow'}</h2>
         <div className="flex flex-wrap gap-3">
-          {steps.map((step, i) => {
+          {visibleSteps.map((step) => {
             const Icon = step.icon;
             return (
               <button
                 key={step.path}
                 onClick={() => navigate(`/inspections/${id}/${step.path}`)}
-                className="flex-1 min-w-[140px] flex flex-col items-center gap-2 p-4 border border-slate-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all group"
+                className={`flex-1 min-w-[140px] flex flex-col items-center gap-2 p-4 border border-slate-200 rounded-xl transition-all group ${isInstitution ? 'hover:border-emerald-300 hover:bg-emerald-50' : 'hover:border-blue-300 hover:bg-blue-50'}`}
               >
-                <div className="w-10 h-10 bg-slate-100 group-hover:bg-blue-100 rounded-xl flex items-center justify-center transition-colors">
-                  <Icon size={18} className="text-slate-500 group-hover:text-blue-600 transition-colors" />
+                <div className={`w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center transition-colors ${isInstitution ? 'group-hover:bg-emerald-100' : 'group-hover:bg-blue-100'}`}>
+                  <Icon size={18} className={`text-slate-500 transition-colors ${isInstitution ? 'group-hover:text-emerald-600' : 'group-hover:text-blue-600'}`} />
                 </div>
-                <span className="text-xs font-semibold text-slate-600 group-hover:text-blue-700 text-center">{step.label}</span>
-                <div className="flex items-center text-xs text-blue-500 font-medium">
+                <span className={`text-xs font-semibold text-slate-600 text-center ${isInstitution ? 'group-hover:text-emerald-700' : 'group-hover:text-blue-700'}`}>{isInstitution && step.label === 'Findings Review' ? 'Inspection Findings' : step.label}</span>
+                <div className={`flex items-center text-xs font-medium ${isInstitution ? 'text-emerald-600' : 'text-blue-500'}`}>
                   Open <ChevronRight size={12} />
                 </div>
               </button>
@@ -138,15 +144,17 @@ const InspectionDetailPage: React.FC = () => {
               <div className="text-sm text-slate-500">Pending Review</div>
             </div>
           </div>
-          <div className="card p-5 flex items-center gap-4">
-            <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
-              <CheckCircle2 size={20} className="text-green-600" />
+          {!isInstitution && (
+            <div className="card p-5 flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
+                <CheckCircle2 size={20} className="text-green-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">{decided}</div>
+                <div className="text-sm text-slate-500">Inspector Decisions</div>
+              </div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-green-600">{decided}</div>
-              <div className="text-sm text-slate-500">Inspector Decisions</div>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -154,8 +162,8 @@ const InspectionDetailPage: React.FC = () => {
       {findings.length > 0 && (
         <div className="card overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="section-title">AI Findings</h2>
-            <button onClick={() => navigate(`/inspections/${id}/findings`)} className="text-sm text-blue-600 font-medium hover:text-blue-800 flex items-center gap-1">
+            <h2 className="section-title">{isInstitution ? 'Inspection Findings' : 'AI Findings'}</h2>
+            <button onClick={() => navigate(`/inspections/${id}/findings`)} className={`text-sm font-medium flex items-center gap-1 ${isInstitution ? 'text-emerald-600 hover:text-emerald-800' : 'text-blue-600 hover:text-blue-800'}`}>
               Review all <ChevronRight size={14} />
             </button>
           </div>
@@ -166,7 +174,7 @@ const InspectionDetailPage: React.FC = () => {
                 <th>Category</th>
                 <th>Status</th>
                 <th>Risk</th>
-                <th>Inspector</th>
+                <th>{isInstitution ? 'Final Resolution' : 'Inspector'}</th>
               </tr>
             </thead>
             <tbody>

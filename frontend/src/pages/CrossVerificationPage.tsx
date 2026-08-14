@@ -20,11 +20,24 @@ const statusColor = (status: string) => {
     CONSISTENT: 'text-green-600 bg-green-50 border-green-200',
     INSUFFICIENT_EVIDENCE: 'text-amber-600 bg-amber-50 border-amber-200',
     REQUIRES_VERIFICATION: 'text-blue-600 bg-blue-50 border-blue-200',
+    POTENTIAL_MISMATCH: 'text-red-600 bg-red-50 border-red-200',
+    MISSING_EVIDENCE: 'text-amber-600 bg-amber-50 border-amber-200',
   };
   return map[status] || 'text-slate-600 bg-slate-50 border-slate-200';
 };
 
-const statusLabel = (s: string) => s.replace(/_/g, ' ');
+const statusLabel = (s: string) => {
+  const map: Record<string, string> = {
+    MISMATCH: 'Mismatch Detected',
+    MINOR_MISMATCH: 'Minor Mismatch',
+    CONSISTENT: 'Consistent',
+    INSUFFICIENT_EVIDENCE: 'Insufficient Evidence',
+    REQUIRES_VERIFICATION: 'Requires Verification',
+    POTENTIAL_MISMATCH: 'Potential Discrepancy',
+    MISSING_EVIDENCE: 'Missing Evidence',
+  };
+  return map[s] || s.replace(/_/g, ' ');
+};
 
 const CrossVerificationPage: React.FC = () => {
   const { id: inspectionId } = useParams<{ id: string }>();
@@ -100,6 +113,7 @@ const CrossVerificationPage: React.FC = () => {
   const comparisonRows = [
     { metric: 'Total Students', claimKey: 'Total Students', aisheKey: 'Total Students', nirfKey: 'Total Students' },
     { metric: 'Total Faculty', claimKey: 'Total Faculty', aisheKey: 'Total Faculty', nirfKey: 'Total Faculty' },
+    { metric: 'Laboratories', claimKey: 'Laboratories', aisheKey: 'Laboratories', nirfKey: 'Laboratories' },
     { metric: 'Programs', claimKey: 'Programs Offered', aisheKey: 'Programs', nirfKey: 'Programs' },
   ];
 
