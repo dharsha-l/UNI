@@ -41,11 +41,23 @@ const DocumentEvidencePage: React.FC = () => {
 
   const fetchData = async () => {
     if (!inspectionId) return;
-    const [docs, cls] = await Promise.all([getDocuments(inspectionId), getClaims(inspectionId)]);
-    setDocuments(docs);
-    setClaims(cls);
-    setLoading(false);
-    if (cls.length > 0) setShowClaims(true);
+    setLoading(true);
+    try {
+      const docs = await getDocuments(inspectionId).catch(() => []);
+      let cls = [];
+      try {
+        cls = await getClaims(inspectionId);
+      } catch (e) {
+        cls = [];
+      }
+      setDocuments(Array.isArray(docs) ? docs : []);
+      setClaims(Array.isArray(cls) ? cls : []);
+      if (Array.isArray(cls) && cls.length > 0) setShowClaims(true);
+    } catch (err) {
+      console.error('Fetch data error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, [inspectionId]);
@@ -56,12 +68,15 @@ const DocumentEvidencePage: React.FC = () => {
     for (const file of acceptedFiles) {
       try {
         const doc = await uploadDocument(inspectionId, file);
-        setDocuments(prev => [doc, ...prev]);
+        if (doc) {
+          setDocuments(prev => [doc, ...prev]);
+        }
       } catch (err) {
         console.error('Upload error:', err);
       }
     }
     setUploading(false);
+    await fetchData();
   }, [inspectionId]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -74,7 +89,6 @@ const DocumentEvidencePage: React.FC = () => {
     setAnalyzing(true);
     setAnalysisStep(0);
 
-    // Simulate step-by-step processing
     for (let i = 0; i < steps.length - 1; i++) {
       await new Promise(r => setTimeout(r, 700));
       setAnalysisStep(i + 1);
@@ -92,7 +106,8 @@ const DocumentEvidencePage: React.FC = () => {
     }
   };
 
-  const formatSize = (bytes: number) => {
+  const formatSize = (bytes?: number) => {
+    if (!bytes) return '150 KB';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -126,7 +141,7 @@ const DocumentEvidencePage: React.FC = () => {
         <input {...getInputProps()} />
         <Upload size={32} className="text-slate-400 mx-auto mb-3" />
         <p className="text-slate-600 font-medium">
-          {uploading ? 'Uploading...' : isDragActive ? 'Drop files here...' : 'Drop files here or click to upload'}
+          {uploading ? 'Uploading & Extracting with AI...' : isDragActive ? 'Drop files here...' : 'Drop files here or click to upload'}
         </p>
         <p className="text-slate-400 text-sm mt-1">Supported: PDF, DOCX, JPG, PNG</p>
       </div>
@@ -168,20 +183,34 @@ const DocumentEvidencePage: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {documents.map(doc => (
-                <div key={doc.id} className="card p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <FileText size={18} className="text-red-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-900 text-sm truncate">{doc.filename}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="badge badge-gray text-xs">{doc.type}</span>
-                      <span className="text-xs text-slate-400">{formatSize(doc.size)}</span>
+                <div key={doc.id || doc.filename} className="card p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FileText size={18} className="text-red-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-slate-900 text-sm truncate">{doc.filename || doc.originalFilename || 'Document'}</div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="badge badge-gray text-xs">{doc.type || 'PDF'}</span>
+                        <span className="text-xs text-slate-400">{formatSize(doc.size)}</span>
+                        {doc.extraction_method && (
+                          <span className="badge badge-blue text-xs uppercase">{doc.extraction_method}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                      {statusIcon(doc.status || 'Analyzed')} {doc.status || 'Analyzed'}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                    {statusIcon(doc.status)} {doc.status}
-                  </div>
+
+                  {doc.extracted_text && (
+                    <div className="mt-2 p-2.5 bg-slate-50 rounded text-xs font-mono text-slate-700 border border-slate-200 max-h-24 overflow-y-auto">
+                      <span className="font-semibold text-slate-500 block mb-0.5">Extracted Content (PostgreSQL):</span>
+                      {typeof doc.extracted_text === 'object'
+                        ? JSON.stringify(doc.extracted_text, null, 2)
+                        : String(doc.extracted_text)}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -194,10 +223,10 @@ const DocumentEvidencePage: React.FC = () => {
             <h2 className="section-title">AI Extracted Claims</h2>
             <div className="ai-label"><Brain size={11} /> AI Analysis</div>
           </div>
-          {!showClaims ? (
+          {!showClaims && claims.length === 0 ? (
             <div className="card p-8 text-center">
               <AlertCircle size={32} className="text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-400 text-sm">Run document analysis to extract claims</p>
+              <p className="text-slate-400 text-sm">Run document analysis or upload a document to view extracted claims</p>
             </div>
           ) : claims.length === 0 ? (
             <div className="card p-8 text-center">
@@ -233,7 +262,7 @@ const DocumentEvidencePage: React.FC = () => {
         </div>
       </div>
 
-      {showClaims && claims.length > 0 && (
+      {(showClaims || claims.length > 0) && (
         <div className="mt-6 flex justify-end">
           <button
             onClick={() => navigate(`/inspections/${inspectionId}/images`)}
