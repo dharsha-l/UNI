@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BuildingLibrary, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, UploadCloud, FileText, Lock } from 'lucide-react';
+import { Building2, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, UploadCloud, FileText, Lock } from 'lucide-react';
 import { login } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -58,7 +58,7 @@ const InstitutionLogin: React.FC = () => {
           {/* Logo */}
           <div className="flex items-center gap-3 mb-16">
             <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-              <BuildingLibrary size={22} className="text-white" />
+              <Building2 size={22} className="text-white" />
             </div>
             <div>
               <div className="text-white font-bold text-xl tracking-tight">UNI-INSPECTION</div>

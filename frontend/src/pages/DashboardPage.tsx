@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, ClipboardList, AlertTriangle, FileStack, ArrowRight,
-  CheckCircle2, Clock, AlertCircle, Play, Shield, Brain, Database, BuildingLibrary
+  CheckCircle2, Clock, AlertCircle, Play, Shield, Brain, Database
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { getDashboard } from '../services/api';
@@ -93,7 +93,7 @@ const DashboardPage: React.FC = () => {
         <div className={`mt-4 bg-gradient-to-r ${isInstitution ? 'from-emerald-700 to-teal-700' : 'from-blue-700 to-indigo-700'} rounded-xl p-4 flex items-center justify-between`}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
-              {isInstitution ? <BuildingLibrary size={16} className="text-white" /> : <Shield size={16} className="text-white" />}
+              {isInstitution ? <Building2 size={16} className="text-white" /> : <Shield size={16} className="text-white" />}
             </div>
             <div>
               <div className="text-white font-bold text-sm">
@@ -172,7 +172,7 @@ const DashboardPage: React.FC = () => {
                 <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ background: '#1e293b', border: 'none', borderRadius: 8, color: 'white', fontSize: 13 }}
-                  formatter={(v: number) => [`${v}/100`, 'Risk Score']}
+                  formatter={(v: any) => [`${v}/100`, 'Risk Score']}
                 />
                 <Bar dataKey="score" radius={[6, 6, 0, 0]}>
                   {riskBarData.map((entry, i) => (

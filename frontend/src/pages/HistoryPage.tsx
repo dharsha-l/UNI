@@ -44,7 +44,7 @@ const HistoryPage: React.FC = () => {
               <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ background: '#1e293b', border: 'none', borderRadius: 8, color: 'white', fontSize: 12 }}
-                formatter={(v: number) => [`${v}/100`, 'Risk Score']}
+                formatter={(v: any) => [`${v}/100`, 'Risk Score']}
               />
               <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2.5} dot={{ fill: '#3b82f6', r: 5 }} />
             </LineChart>
