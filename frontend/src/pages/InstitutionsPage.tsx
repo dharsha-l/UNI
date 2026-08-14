@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, MapPin, Users, BookOpen, GraduationCap, Plus, ChevronRight, Search, ExternalLink } from 'lucide-react';
 import { getInstitutions } from '../services/api';
 
-const accreditationColor = (status: string) => {
-  if (status.includes('A)')) return 'badge-low';
+const accreditationColor = (status?: string) => {
+  if (!status) return 'badge-gray';
+  if (status.includes('A')) return 'badge-low';
   if (status.includes('B')) return 'badge-medium';
   if (status.includes('Under')) return 'badge-blue';
   return 'badge-gray';
