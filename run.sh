@@ -21,9 +21,30 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 # ------------------------------------------------------------------------------
+# Helper Function: Free port if in use
+# ------------------------------------------------------------------------------
+free_port() {
+    local port=$1
+    local pids
+    pids=$(lsof -ti :"$port" 2>/dev/null || true)
+    if [ -n "$pids" ]; then
+        echo -e "${YELLOW}🧹 Clearing port $port (Killing existing process PID $pids)...${NC}"
+        kill -9 $pids 2>/dev/null || true
+        sleep 1
+    fi
+}
+
+echo -e "\n${YELLOW}[1/5] Checking and freeing ports (8000, 8081, 8080, 5173)...${NC}"
+free_port 8000
+free_port 8081
+free_port 8080
+free_port 5173
+echo -e "${GREEN}✓ All ports cleared and ready.${NC}"
+
+# ------------------------------------------------------------------------------
 # 1. Check & Install Node.js Dependencies
 # ------------------------------------------------------------------------------
-echo -e "\n${YELLOW}[1/4] Checking Node.js & Frontend dependencies...${NC}"
+echo -e "\n${YELLOW}[2/5] Checking Node.js & Frontend dependencies...${NC}"
 if ! command -v node &> /dev/null; then
     echo -e "${RED}❌ Error: Node.js is not installed. Please install Node.js 18+ from https://nodejs.org${NC}"
     exit 1
@@ -43,7 +64,7 @@ echo -e "${GREEN}✓ Node.js & Frontend dependencies ready.${NC}"
 # ------------------------------------------------------------------------------
 # 2. Check & Install Python FastAPI AI Dependencies
 # ------------------------------------------------------------------------------
-echo -e "\n${YELLOW}[2/4] Checking Python 3 & AI Microservice dependencies...${NC}"
+echo -e "\n${YELLOW}[3/5] Checking Python 3 & AI Microservice dependencies...${NC}"
 if ! command -v python3 &> /dev/null; then
     echo -e "${RED}❌ Error: Python 3 is not installed. Please install Python 3.10+ from https://python.org${NC}"
     exit 1
@@ -63,7 +84,7 @@ echo -e "${GREEN}✓ Python FastAPI AI service dependencies ready.${NC}"
 # ------------------------------------------------------------------------------
 # 3. Check Java & Maven for Spring Boot
 # ------------------------------------------------------------------------------
-echo -e "\n${YELLOW}[3/4] Checking Java 21 & Maven for Spring Boot services...${NC}"
+echo -e "\n${YELLOW}[4/5] Checking Java 21 & Maven for Spring Boot services...${NC}"
 if ! command -v java &> /dev/null; then
     echo -e "${RED}❌ Error: Java is not installed. Please install JDK 21 from https://adoptium.net${NC}"
     exit 1
@@ -84,7 +105,7 @@ echo -e "${GREEN}✓ Java & Maven ready.${NC}"
 # ------------------------------------------------------------------------------
 # 4. Launch All 4 Microservices Concurrently
 # ------------------------------------------------------------------------------
-echo -e "\n${YELLOW}[4/4] Launching Microservices...${NC}"
+echo -e "\n${YELLOW}[5/5] Launching Microservices...${NC}"
 
 PIDS=()
 

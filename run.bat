@@ -11,8 +11,17 @@ echo.
 
 cd /d "%~dp0"
 
+:: 0. Check and Free Ports (8000, 8081, 8080, 5173)
+echo [1/5] Clearing ports (8000, 8081, 8080, 5173)...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000 " ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8081 " ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8080 " ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5173 " ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
+echo ✓ All ports cleared.
+echo.
+
 :: 1. Check Node.js & Frontend Dependencies
-echo [1/4] Checking Node.js & Frontend dependencies...
+echo [2/5] Checking Node.js & Frontend dependencies...
 where node >nul 2>nul
 if %errorlevel% neq 0 (
     echo ❌ Error: Node.js is not installed! Please install Node.js 18+ from https://nodejs.org
@@ -35,7 +44,7 @@ echo ✓ Node.js & Frontend dependencies ready.
 echo.
 
 :: 2. Check Python & AI Service Dependencies
-echo [2/4] Checking Python & AI Microservice dependencies...
+echo [3/5] Checking Python & AI Microservice dependencies...
 where python >nul 2>nul
 if %errorlevel% neq 0 (
     echo ❌ Error: Python is not installed! Please install Python 3.10+ from https://python.org
@@ -56,7 +65,7 @@ echo ✓ Python FastAPI AI service dependencies ready.
 echo.
 
 :: 3. Check Java & Maven
-echo [3/4] Checking Java 21 & Maven...
+echo [4/5] Checking Java 21 & Maven...
 where java >nul 2>nul
 if %errorlevel% neq 0 (
     echo ❌ Error: Java is not installed! Please install JDK 21 from https://adoptium.net
@@ -74,7 +83,7 @@ echo ✓ Java & Maven ready.
 echo.
 
 :: 4. Launch Microservices in Concurrent Windows
-echo [4/4] Launching Microservices...
+echo [5/5] Launching Microservices...
 
 echo ▶ Starting AI Microservice (FastAPI - Port 8000)...
 start "InspectAI - Python AI Service (Port 8000)" cmd /k "cd ai-service && venv\Scripts\python.exe -m uvicorn main:app --port 8000 --reload"
