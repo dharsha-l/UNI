@@ -196,6 +196,12 @@ if ! command_exists pdftoppm; then
     fi
 fi
 
+cd "$SCRIPT_DIR/ai-service"
+if [ ! -d "venv" ]; then
+    echo -e "${YELLOW}🐍 Creating Python virtual environment (venv)...${NC}"
+    python3 -m venv venv
+fi
+
 echo -e "${YELLOW}🐍 Installing Python AI requirements...${NC}"
 ./venv/bin/pip install -q -r requirements.txt
 cd "$SCRIPT_DIR"
