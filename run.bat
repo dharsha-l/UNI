@@ -32,6 +32,19 @@ if %errorlevel% neq 0 (
     echo DB_NAME=inspectai >> .env
 )
 
+findstr /C:"GEMINI_API_KEY=" .env >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo 🔑 GEMINI_API_KEY is missing in .env
+    set /p USER_KEY="Enter your Gemini API key (or press Enter to skip): "
+    if not "!USER_KEY!"=="" (
+        echo GEMINI_API_KEY=!USER_KEY! >> .env
+        echo ✓ Saved GEMINI_API_KEY to .env
+    ) else (
+        echo GEMINI_API_KEY= >> .env
+    )
+)
+
 :: Set default fallback values
 set DB_USER=inspectai
 set DB_PASSWORD=inspectai_dev_pass

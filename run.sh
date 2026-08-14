@@ -69,6 +69,24 @@ if ! grep -q "^DB_NAME=" .env; then
     echo "DB_NAME=inspectai" >> .env
 fi
 
+if ! grep -q "^GEMINI_API_KEY=" .env; then
+    echo "GEMINI_API_KEY=" >> .env
+fi
+
+KEY_VAL=$(grep "^GEMINI_API_KEY=" .env | cut -d '=' -f2- | tr -d '"' | tr -d "'")
+if [ -z "$KEY_VAL" ]; then
+    echo -e "${YELLOW}🔑 GEMINI_API_KEY is not set in .env${NC}"
+    read -r -p "Enter your Gemini API key (or press Enter to skip): " USER_KEY
+    if [ -n "$USER_KEY" ]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|^GEMINI_API_KEY=.*|GEMINI_API_KEY=$USER_KEY|" .env 2>/dev/null || true
+        else
+            sed -i "s|^GEMINI_API_KEY=.*|GEMINI_API_KEY=$USER_KEY|" .env 2>/dev/null || true
+        fi
+        echo -e "${GREEN}✓ Saved GEMINI_API_KEY to .env${NC}"
+    fi
+fi
+
 # Load variables safely from .env for script execution
 set -a
 [ -f .env ] && . .env
