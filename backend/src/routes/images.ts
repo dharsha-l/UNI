@@ -1,13 +1,28 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { DB, insertRecord, updateRecord } from '../database';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import { VisionAIService } from '../services/aiServices';
+import { authenticate, requireRoles } from '../middleware/auth';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-router.get('/:inspectionId', (req: Request, res: Response) => {
+// Check access to inspection
+const checkInspectionAccess = (req: Request, res: Response, next: NextFunction) => {
+  if (['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER'].includes(req.user!.role)) {
+    return next();
+  }
+  const inspectionId = req.params.inspectionId || req.body.inspection_id;
+  if (!inspectionId) return res.status(400).json({ error: 'Inspection ID missing' });
+  const insp = DB.inspections.find(i => i.id === inspectionId);
+  if (!insp || insp.institution_id !== req.user!.institutionId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  next();
+};
+
+router.get('/:inspectionId', authenticate, checkInspectionAccess, (req: Request, res: Response) => {
   const images = DB.images.filter(i => i.inspection_id === req.params.inspectionId)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   res.json(images);
@@ -15,7 +30,7 @@ router.get('/:inspectionId', (req: Request, res: Response) => {
 
 const imageBuffers = new Map<string, Buffer>();
 
-router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
+router.post('/upload', authenticate, upload.single('file'), checkInspectionAccess, (req: Request, res: Response) => {
   const { inspection_id, category } = req.body;
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'No file provided' });
@@ -24,10 +39,13 @@ router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
   imageBuffers.set(id, file.buffer);
   const record = { id, inspection_id, filename: file.originalname, category: category || 'General', status: 'Uploaded', created_at: new Date().toISOString() };
   insertRecord(DB.images, record);
+  
+  DB.auditLogs.push({ id: uuidv4(), userId: req.user!.id, role: req.user!.role, action: 'UPLOAD_IMAGE', entity: 'Image', entityId: id, timestamp: new Date().toISOString() });
+  
   res.json(record);
 });
 
-router.post('/:id/analyze', async (req: Request, res: Response) => {
+router.post('/:id/analyze', authenticate, requireRoles(['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER']), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const image = DB.images.find(i => i.id === id);
@@ -52,13 +70,16 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
     }
 
     updateRecord(DB.images, id, { status: 'Analyzed', analyzed_at: new Date().toISOString() } as any);
+    
+    DB.auditLogs.push({ id: uuidv4(), userId: req.user!.id, role: req.user!.role, action: 'ANALYZE_IMAGE', entity: 'Image', entityId: id, timestamp: new Date().toISOString() });
+    
     res.json({ success: true, detections_count: detections.length, detections });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/analyze-all/:inspectionId', async (req: Request, res: Response) => {
+router.post('/analyze-all/:inspectionId', authenticate, requireRoles(['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER']), async (req: Request, res: Response) => {
   try {
     const { inspectionId } = req.params;
     const images = DB.images.filter(i => i.inspection_id === inspectionId && i.status !== 'Analyzed');
@@ -95,7 +116,7 @@ router.post('/analyze-all/:inspectionId', async (req: Request, res: Response) =>
   }
 });
 
-router.get('/detections/:inspectionId', (req: Request, res: Response) => {
+router.get('/detections/:inspectionId', authenticate, checkInspectionAccess, (req: Request, res: Response) => {
   const detections = DB.detections.filter(d => d.inspection_id === req.params.inspectionId).map(d => {
     const img = DB.images.find(i => i.id === d.image_id);
     return { ...d, image_name: img?.filename, category: img?.category };

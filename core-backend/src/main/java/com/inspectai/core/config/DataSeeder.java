@@ -41,13 +41,25 @@ public class DataSeeder implements CommandLineRunner {
         if (institutionRepository.count() == 0) {
             Institution inst1 = new Institution("inst-1", "ABC Institute of Technology", "ABC-TECH-01", "C-24151", "Engineering & Tech", "Karnataka", "Bengaluru", "123 Innovation Campus, Whitefield", "contact@abctech.edu", "+91 80 2345 6789");
             Institution inst2 = new Institution("inst-2", "XYZ National University", "XYZ-UNIV-02", "U-08922", "Central University", "Maharashtra", "Pune", "University Road, Ganeshkhind", "registrar@xyzuniv.edu.in", "+91 20 9876 5432");
+            Institution inst3 = new Institution("inst-3", "Global Institute of Medical Sciences", "GIMS-MED-03", "M-14022", "Medical & Sciences", "Tamil Nadu", "Chennai", "45 Healthcare Enclave, Guindy", "admin@gimsmed.edu.in", "+91 44 2234 8899");
+            Institution inst4 = new Institution("inst-4", "National School of Management & Research", "NSMR-MGMT-04", "S-05891", "Management Institute", "Haryana", "Gurugram", "88 Executive Boulevard, Cyber City", "admissions@nsmr.ac.in", "+91 124 456 7890");
+
             institutionRepository.save(inst1);
             institutionRepository.save(inst2);
+            institutionRepository.save(inst3);
+            institutionRepository.save(inst4);
         }
 
         if (inspectionRepository.count() == 0) {
             Inspection insp1 = new Inspection("insp-1", "INS-2026-001", "inst-1", "usr-1", "In Progress", 65.0, "High", Instant.now().toString());
+            Inspection insp2 = new Inspection("insp-2", "INS-2026-002", "inst-2", "usr-1", "In Progress", 22.0, "Low", Instant.now().toString());
+            Inspection insp3 = new Inspection("insp-3", "INS-2026-003", "inst-3", "usr-1", "Action Required", 88.0, "Critical", Instant.now().toString());
+            Inspection insp4 = new Inspection("insp-4", "INS-2026-004", "inst-4", "usr-1", "Completed", 15.0, "Low", Instant.now().toString());
+
             inspectionRepository.save(insp1);
+            inspectionRepository.save(insp2);
+            inspectionRepository.save(insp3);
+            inspectionRepository.save(insp4);
         }
 
         if (findingRepository.count() == 0) {
@@ -80,6 +92,6 @@ public class DataSeeder implements CommandLineRunner {
             findingRepository.save(f2);
         }
 
-        System.out.println("✅ Spring Boot H2 Database Seeded Successfully!");
+        System.out.println("✅ Spring Boot Database Seeded Successfully (4 Institutions, 4 Inspections)!");
     }
 }
