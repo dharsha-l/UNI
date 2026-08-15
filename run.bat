@@ -93,13 +93,14 @@ if %errorlevel% neq 0 (
         choco install postgresql16 --params "/Password:%DB_PASSWORD%" -y
     )
 ) else (
-    :: Auto-provision database non-interactively using PGPASSWORD
     set PGPASSWORD=%DB_PASSWORD%
     echo ⚙️ Auto-provisioning database '%DB_NAME%' and user '%DB_USER%'...
 
-    psql -U postgres -h localhost -c "CREATE USER %DB_USER% WITH ENCRYPTED PASSWORD '%DB_PASSWORD%';" >nul 2>&1
-    psql -U postgres -h localhost -c "CREATE DATABASE %DB_NAME% OWNER %DB_USER%;" >nul 2>&1
-    psql -U postgres -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE %DB_NAME% TO %DB_USER%;" >nul 2>&1
+    if exist "ai-service\venv\Scripts\python.exe" (
+        ai-service\venv\Scripts\python.exe ai-service\create_db.py >nul 2>&1
+    ) else (
+        psql -U postgres -h localhost -c "CREATE DATABASE %DB_NAME%;" >nul 2>&1
+    )
 
     set PGPASSWORD=
     echo ✅ PostgreSQL ready: database '%DB_NAME%' provisioned.

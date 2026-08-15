@@ -7,8 +7,8 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:inspectai}
     driver-class-name: org.postgresql.Driver
-    username: ${DB_USER:inspectai}
-    password: ${DB_PASSWORD:inspectai_dev_pass}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:root}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
@@ -17,4 +17,4 @@ spring:
 
 ai:
   service:
-    url: http://localhost:8000
+    url: ${AI_SERVICE_URL:http://localhost:8000}
