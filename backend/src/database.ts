@@ -11,7 +11,7 @@ export interface Inspection { id: string; inspection_id: string; institution_id:
 export interface Document { id: string; inspection_id: string; filename: string; type: string; size: number; status: string; analyzed_at?: string; created_at: string; }
 export interface ImageRecord { id: string; inspection_id: string; filename: string; category: string; status: string; analyzed_at?: string; created_at: string; }
 export interface Claim { id: string; inspection_id: string; document_id?: string; category: string; claim_name: string; value: string; source_document: string; page_number: number; confidence: number; created_at: string; }
-export interface Detection { id: string; inspection_id: string; image_id: string; object_type: string; confidence: number; created_at: string; }
+export interface Detection { id: string; inspection_id: string; image_id: string; object_type: string; confidence: number; class_id?: number; bbox?: any; created_at: string; }
 export interface Finding { id: string; inspection_id: string; finding_number: string; category: string; title: string; description: string; evidence: string; risk: string; status: string; ai_confidence: number; inspector_decision?: string; inspector_comment?: string; inspector_id?: string; decided_at?: string; created_at: string; }
 export interface Regulation { id: string; source: string; document: string; section: string; title: string; excerpt: string; tags: string; created_at: string; }
 export interface ExternalData { id: string; institution_id: string; source: string; metric: string; value: string; year: number; created_at: string; }

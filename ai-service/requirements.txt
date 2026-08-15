@@ -11,3 +11,7 @@ python-dotenv
 opencv-python
 pytesseract
 pdf2image
+ultralytics
+torch
+torchvision
+pillow

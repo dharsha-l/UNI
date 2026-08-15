@@ -103,7 +103,22 @@ const VisualEvidencePage: React.FC = () => {
     detectionCounts[d.object_type] = (detectionCounts[d.object_type] || 0) + 1;
   });
 
-  const getDemoBoxes = (img: any) => DEMO_BOXES[img?.filename] || [];
+  const getDetectionsForImage = (img: any) => {
+    if (!img) return [];
+    const realDets = detections.filter(d => d.image_id === img.id);
+    if (realDets.length > 0) {
+      const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
+      return realDets.map((d, i) => ({
+        label: d.object_type,
+        conf: Math.round(d.confidence > 1 ? d.confidence : d.confidence * 100),
+        color: colors[i % colors.length],
+        bbox: d.bbox
+      }));
+    }
+    return DEMO_BOXES[img?.filename] || [];
+  };
+
+  const currentDetections = getDetectionsForImage(selectedImage);
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -221,15 +236,15 @@ const VisualEvidencePage: React.FC = () => {
                 </div>
 
                 {/* YOLO Bounding box overlays */}
-                {showDetections && getDemoBoxes(selectedImage).map((box, i) => (
+                {showDetections && currentDetections.map((box, i) => (
                   <div
                     key={i}
                     className="detection-box"
                     style={{
-                      left: `${box.x}%`,
-                      top: `${box.y}%`,
-                      width: `${box.w}%`,
-                      height: `${box.h}%`,
+                      left: box.bbox ? `${Math.min(box.bbox.x1 / 6.4, 80)}%` : `${(i * 25) % 75 + 10}%`,
+                      top: box.bbox ? `${Math.min(box.bbox.y1 / 4.8, 70)}%` : `${(i * 20) % 60 + 15}%`,
+                      width: box.bbox ? `${Math.min(Math.max((box.bbox.x2 - box.bbox.x1) / 6.4, 15), 50)}%` : '30%',
+                      height: box.bbox ? `${Math.min(Math.max((box.bbox.y2 - box.bbox.y1) / 4.8, 15), 40)}%` : '25%',
                       borderColor: box.color,
                       background: `${box.color}10`,
                     }}
@@ -248,23 +263,29 @@ const VisualEvidencePage: React.FC = () => {
               {showDetections && (
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="ai-label"><Brain size={11} />AI Analysis</div>
+                    <div className="ai-label"><Brain size={11} />YOLO AI Analysis</div>
                     <span className="text-sm font-semibold text-slate-700">Detected Objects</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {getDemoBoxes(selectedImage).map((box, i) => (
-                      <div key={i} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-sm" style={{ background: box.color }} />
-                          <span className="text-xs font-medium text-slate-700">{box.label}</span>
+                  {currentDetections.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {currentDetections.map((box, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-sm" style={{ background: box.color }} />
+                            <span className="text-xs font-medium text-slate-700">{box.label}</span>
+                          </div>
+                          <span className="text-xs font-bold text-slate-600">{box.conf}%</span>
                         </div>
-                        <span className="text-xs font-bold text-slate-600">{box.conf}%</span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-slate-50 rounded-lg text-xs text-slate-500 text-center">
+                      No objects detected by YOLO in this image.
+                    </div>
+                  )}
                   <div className="mt-3 pt-3 border-t border-slate-100">
                     <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                      ⚠️ Visual evidence shows objects in uploaded photos only. This does not verify the total institutional count.
+                      ⚠️ Visual evidence shows objects detected in uploaded photos only. This does not verify total institutional inventory.
                     </p>
                   </div>
                 </div>

@@ -43,53 +43,44 @@ export const DocumentAIService = {
 };
 
 // ============================================================
-// VISION AI SERVICE (Mock → YOLOv8 object detection)
+// VISION AI SERVICE (YOLOv8 object detection via FastAPI)
 // ============================================================
 export const VisionAIService = {
-  async detectObjects(imageId: string, filename: string, category: string): Promise<any[]> {
-    await delay(2500);
+  async detectObjects(imageId: string, filename: string, category: string, buffer?: Buffer): Promise<any[]> {
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const endpoint = `${aiServiceUrl}/api/v1/ai/images/analyze`;
 
-    const detectionMap: Record<string, any[]> = {
-      'lab_01.jpg': [
-        { object_type: 'Lab Bench', confidence: 0.94 },
-        { object_type: 'Lab Bench', confidence: 0.92 },
-        { object_type: 'Lab Equipment', confidence: 0.87 },
-        { object_type: 'Computer Workstation', confidence: 0.91 },
-      ],
-      'lab_02.jpg': [
-        { object_type: 'Lab Bench', confidence: 0.96 },
-        { object_type: 'Lab Equipment', confidence: 0.89 },
-        { object_type: 'Safety Cabinet', confidence: 0.83 },
-      ],
-      'lab_03.jpg': [
-        { object_type: 'Fire Extinguisher', confidence: 0.91 },
-        { object_type: 'Fire Extinguisher', confidence: 0.88 },
-        { object_type: 'Emergency Exit Sign', confidence: 0.84 },
-        { object_type: 'Lab Bench', confidence: 0.94 },
-      ],
-      'classroom_01.jpg': [
-        { object_type: 'Whiteboard', confidence: 0.93 },
-        { object_type: 'Student Desk', confidence: 0.95 },
-        { object_type: 'Student Desk', confidence: 0.94 },
-        { object_type: 'Projector', confidence: 0.89 },
-        { object_type: 'Student Chair', confidence: 0.96 },
-      ],
-      'library_01.jpg': [
-        { object_type: 'Bookshelf', confidence: 0.97 },
-        { object_type: 'Bookshelf', confidence: 0.96 },
-        { object_type: 'Reading Table', confidence: 0.91 },
-        { object_type: 'Computer Terminal', confidence: 0.88 },
-      ],
-      'campus_entrance.jpg': [
-        { object_type: 'Building Structure', confidence: 0.98 },
-        { object_type: 'Signage', confidence: 0.92 },
-        { object_type: 'Security Booth', confidence: 0.85 },
-      ],
-    };
+    if (buffer && buffer.length > 0) {
+      try {
+        const formData = new FormData();
+        formData.append('image_id', imageId);
+        formData.append('filename', filename);
+        formData.append('category', category || 'General');
 
-    return detectionMap[filename] || [
-      { object_type: 'Unidentified Object', confidence: 0.60 }
-    ];
+        const blob = new Blob([new Uint8Array(buffer)], { type: 'image/jpeg' });
+        formData.append('file', blob, filename);
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          body: formData as any,
+        });
+
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.success && Array.isArray(resData.detections)) {
+            return resData.detections;
+          }
+        } else {
+          console.warn(`[VisionAIService] AI service returned status ${response.status}`);
+        }
+      } catch (err: any) {
+        console.warn(`[VisionAIService] AI service call failed: ${err.message}`);
+      }
+    } else {
+      console.warn(`[VisionAIService] No image buffer available for image ${imageId} (${filename}).`);
+    }
+
+    return [];
   }
 };
 

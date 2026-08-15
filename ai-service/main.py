@@ -113,39 +113,54 @@ async def analyze_document(file: UploadFile = File(...)):
 
     return response
 
-# 2. Vision AI Object Detection Microservice
-@app.post("/api/v1/ai/images/analyze")
-async def analyze_image(image_id: str = Form(...), filename: str = Form(...), category: Optional[str] = Form("General")):
-    fname_lower = filename.lower()
-    detections = []
-    
-    if "ramp" in fname_lower or "entrance" in fname_lower:
-        detections = [
-            {"id": str(uuid.uuid4()), "object_type": "Stairs", "confidence": 0.96},
-            {"id": str(uuid.uuid4()), "object_type": "Main Entrance", "confidence": 0.92},
-            {"id": str(uuid.uuid4()), "object_type": "Ramp Structure Missing", "confidence": 0.88}
-        ]
-    elif "lab" in fname_lower or "computer" in fname_lower:
-        detections = [
-            {"id": str(uuid.uuid4()), "object_type": "Computer Terminals (28 detected)", "confidence": 0.94},
-            {"id": str(uuid.uuid4()), "object_type": "Lab Bench", "confidence": 0.90}
-        ]
-    elif "fire" in fname_lower or "extinguisher" in fname_lower:
-        detections = [
-            {"id": str(uuid.uuid4()), "object_type": "Fire Extinguisher (Expired tag)", "confidence": 0.89}
-        ]
-    else:
-        detections = [
-            {"id": str(uuid.uuid4()), "object_type": f"Detected Infrastructure Element ({category})", "confidence": 0.87}
-        ]
+from yolo_detector import detect_objects_in_image, get_yolo_model
 
-    return {
-        "success": True,
-        "image_id": image_id,
-        "filename": filename,
-        "detections_count": len(detections),
-        "detections": detections
-    }
+@app.on_event("startup")
+def startup_event():
+    # Pre-load YOLO model on service startup
+    get_yolo_model()
+
+# 2. Vision AI Object Detection Microservice (YOLOv8)
+@app.post("/api/v1/ai/images/analyze")
+async def analyze_image(
+    image_id: Optional[str] = Form(None),
+    filename: Optional[str] = Form(None),
+    category: Optional[str] = Form("General"),
+    file: Optional[UploadFile] = File(None)
+):
+    """
+    Real Vision AI Object Detection microservice powered by YOLOv8.
+    Accepts actual uploaded image file bytes and performs object detection inference.
+    """
+    img_id = image_id or str(uuid.uuid4())
+    fname = filename or (file.filename if file else "image.jpg")
+
+    if not file:
+        raise HTTPException(
+            status_code=400,
+            detail="No image file provided. Upload an image file under 'file' for YOLO object detection."
+        )
+
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Uploaded image file is empty.")
+
+        detections = detect_objects_in_image(content)
+
+        return {
+            "success": True,
+            "image_id": img_id,
+            "filename": fname,
+            "category": category,
+            "detections_count": len(detections),
+            "detections": detections
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image analysis error: {str(e)}")
+
 
 # 3. AI Cross-Verification Engine
 @app.post("/api/v1/ai/cross-verify", response_model=RiskScoreResult)

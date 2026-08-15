@@ -13,12 +13,15 @@ router.get('/:inspectionId', (req: Request, res: Response) => {
   res.json(images);
 });
 
+const imageBuffers = new Map<string, Buffer>();
+
 router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
   const { inspection_id, category } = req.body;
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'No file provided' });
 
   const id = uuidv4();
+  imageBuffers.set(id, file.buffer);
   const record = { id, inspection_id, filename: file.originalname, category: category || 'General', status: 'Uploaded', created_at: new Date().toISOString() };
   insertRecord(DB.images, record);
   res.json(record);
@@ -31,11 +34,21 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
     if (!image) return res.status(404).json({ error: 'Image not found' });
 
     updateRecord(DB.images, id, { status: 'Processing' } as any);
-    const detections = await VisionAIService.detectObjects(image.id, image.filename, image.category);
+    const buffer = imageBuffers.get(id);
+    const detections = await VisionAIService.detectObjects(image.id, image.filename, image.category, buffer);
 
     for (const det of detections) {
       const did = uuidv4();
-      DB.detections.push({ id: did, inspection_id: image.inspection_id, image_id: image.id, object_type: det.object_type, confidence: det.confidence, created_at: new Date().toISOString() });
+      DB.detections.push({
+        id: did,
+        inspection_id: image.inspection_id,
+        image_id: image.id,
+        object_type: det.object_type,
+        confidence: det.confidence,
+        class_id: det.class_id,
+        bbox: det.bbox,
+        created_at: new Date().toISOString()
+      });
     }
 
     updateRecord(DB.images, id, { status: 'Analyzed', analyzed_at: new Date().toISOString() } as any);
@@ -53,10 +66,20 @@ router.post('/analyze-all/:inspectionId', async (req: Request, res: Response) =>
     let totalDetections = 0;
     for (const img of images) {
       updateRecord(DB.images, img.id, { status: 'Processing' } as any);
-      const detections = await VisionAIService.detectObjects(img.id, img.filename, img.category);
+      const buffer = imageBuffers.get(img.id);
+      const detections = await VisionAIService.detectObjects(img.id, img.filename, img.category, buffer);
       for (const det of detections) {
         const did = uuidv4();
-        DB.detections.push({ id: did, inspection_id: inspectionId, image_id: img.id, object_type: det.object_type, confidence: det.confidence, created_at: new Date().toISOString() });
+        DB.detections.push({
+          id: did,
+          inspection_id: inspectionId,
+          image_id: img.id,
+          object_type: det.object_type,
+          confidence: det.confidence,
+          class_id: det.class_id,
+          bbox: det.bbox,
+          created_at: new Date().toISOString()
+        });
       }
       updateRecord(DB.images, img.id, { status: 'Analyzed', analyzed_at: new Date().toISOString() } as any);
       totalDetections += detections.length;
