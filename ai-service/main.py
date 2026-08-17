@@ -1,14 +1,22 @@
 import os
 import uuid
+import tempfile
+import json
+import logging
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+load_dotenv()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="InspectAI - AI Microservices API",
-    description="Python FastAPI service handling OCR Document Analysis, Vision AI Object Detection, Cross-Verification & Regulation RAG",
+    description="Python FastAPI service handling OCR Document Analysis, Roboflow Hosted Workflow Vision AI Inference, Cross-Verification & Regulation RAG",
     version="1.0.0"
 )
 
@@ -65,13 +73,13 @@ def health_check():
         "timestamp": datetime.utcnow().isoformat()
     }
 
-from dotenv import load_dotenv
-load_dotenv()
-
-import tempfile
-import os
-import json
 from pdf_extraction import extract_text_from_pdf
+from roboflow_client import run_roboflow_workflow, get_roboflow_client
+
+@app.on_event("startup")
+def startup_event():
+    # Warm up Roboflow client if key is configured
+    get_roboflow_client()
 
 # 1. Document Real Text Extraction Microservice
 @app.post("/api/v1/ai/documents/analyze")
@@ -113,53 +121,77 @@ async def analyze_document(file: UploadFile = File(...)):
 
     return response
 
-from yolo_detector import detect_objects_in_image, get_yolo_model
 
-@app.on_event("startup")
-def startup_event():
-    # Pre-load YOLO model on service startup
-    get_yolo_model()
-
-# 2. Vision AI Object Detection Microservice (YOLOv8)
+# 2. Vision AI Object Detection Microservice (Roboflow Hosted Workflow Inference)
 @app.post("/api/v1/ai/images/analyze")
 async def analyze_image(
+    image: Optional[UploadFile] = File(None),
+    file: Optional[UploadFile] = File(None),
     image_id: Optional[str] = Form(None),
     filename: Optional[str] = Form(None),
-    category: Optional[str] = Form("General"),
-    file: Optional[UploadFile] = File(None)
+    category: Optional[str] = Form("General")
 ):
     """
-    Real Vision AI Object Detection microservice powered by YOLOv8.
-    Accepts actual uploaded image file bytes and performs object detection inference.
+    Vision AI Object Detection microservice powered by Roboflow Hosted Workflow Inference (RF-DETR Medium).
+    Accepts uploaded image file bytes and executes serverless workflow inference.
     """
-    img_id = image_id or str(uuid.uuid4())
-    fname = filename or (file.filename if file else "image.jpg")
-
-    if not file:
+    upload_file = image or file
+    if not upload_file:
         raise HTTPException(
             status_code=400,
-            detail="No image file provided. Upload an image file under 'file' for YOLO object detection."
+            detail="No image file provided. Upload an image file under 'image' or 'file'."
         )
 
+    # Check API key configuration early
+    api_key = os.getenv("ROBOFLOW_API_KEY")
+    if not api_key or not api_key.strip():
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "error_code": "ROBOFLOW_NOT_CONFIGURED",
+                "message": "Roboflow inference is not configured on this server."
+            }
+        )
+
+    fname = filename or upload_file.filename or "uploaded.jpg"
+    ext = os.path.splitext(fname)[1].lower()
+    content_type = upload_file.content_type or ""
+
+    allowed_types = {"image/jpeg", "image/png", "image/webp"}
+    allowed_exts = {".jpg", ".jpeg", ".png", ".webp"}
+
+    if content_type not in allowed_types and ext not in allowed_exts:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Allowed types: image/jpeg, image/png, image/webp."
+        )
+
+    # Save to a unique temporary file
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext or ".jpg")
+    temp_path = temp_file.name
+
     try:
-        content = await file.read()
+        content = await upload_file.read()
         if not content:
             raise HTTPException(status_code=400, detail="Uploaded image file is empty.")
+        temp_file.write(content)
+        temp_file.close()
 
-        detections = detect_objects_in_image(content)
+        result = run_roboflow_workflow(temp_path, filename=fname)
 
-        return {
-            "success": True,
-            "image_id": img_id,
-            "filename": fname,
-            "category": category,
-            "detections_count": len(detections),
-            "detections": detections
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Image analysis error: {str(e)}")
+        if not result.get("success"):
+            if result.get("error_code") == "ROBOFLOW_NOT_CONFIGURED":
+                return JSONResponse(status_code=503, content=result)
+            return JSONResponse(status_code=500, content=result)
+
+        return result
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 
 # 3. AI Cross-Verification Engine

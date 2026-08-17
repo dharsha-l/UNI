@@ -1,5 +1,7 @@
 import io
+import os
 from PIL import Image, ImageDraw
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from main import app
 
@@ -16,20 +18,39 @@ def create_sample_jpeg():
 
 def test_analyze_image_with_file():
     img_bytes = create_sample_jpeg()
-    response = client.post(
-        "/api/v1/ai/images/analyze",
-        data={"image_id": "img-test-101", "filename": "sample_photo.jpg", "category": "Laboratory"},
-        files={"file": ("sample_photo.jpg", img_bytes, "image/jpeg")}
-    )
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    json_data = response.json()
-    assert json_data.get("success") is True
-    assert json_data.get("image_id") == "img-test-101"
-    assert json_data.get("filename") == "sample_photo.jpg"
-    assert json_data.get("category") == "Laboratory"
-    assert "detections_count" in json_data
-    assert "detections" in json_data
-    assert isinstance(json_data["detections"], list)
+    mock_result = {
+        "success": True,
+        "filename": "sample_photo.jpg",
+        "model": "roboflow-rf-detr-medium",
+        "detections": [
+            {
+                "class": "fire-extinguisher",
+                "confidence": 0.94,
+                "bbox": {"x": 100.0, "y": 80.0, "width": 120.0, "height": 240.0}
+            }
+        ],
+        "summary": {
+            "total_detections": 1,
+            "classes_found": ["fire-extinguisher"],
+            "highest_confidence": 0.94,
+            "risk_categories": ["fire-safety"]
+        },
+        "raw_result": None
+    }
+
+    with patch.dict(os.environ, {"ROBOFLOW_API_KEY": "fake_key_12345"}, clear=False):
+        with patch("main.run_roboflow_workflow", return_value=mock_result):
+            response = client.post(
+                "/api/v1/ai/images/analyze",
+                data={"image_id": "img-test-101", "filename": "sample_photo.jpg", "category": "Laboratory"},
+                files={"file": ("sample_photo.jpg", img_bytes, "image/jpeg")}
+            )
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+            json_data = response.json()
+            assert json_data.get("success") is True
+            assert json_data.get("filename") == "sample_photo.jpg"
+            assert "detections" in json_data
+            assert isinstance(json_data["detections"], list)
 
 def test_analyze_image_missing_file():
     response = client.post(

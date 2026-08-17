@@ -55,6 +55,14 @@ python3 -m venv venv
 ```
 *API Docs: **http://localhost:8000/docs***
 
+```bash
+# Manual test command for Roboflow Hosted Workflow Vision AI inference
+curl -X POST \
+  http://localhost:8000/api/v1/ai/images/analyze \
+  -H "accept: application/json" \
+  -F "image=@sample.jpg"
+```
+
 #### 2️⃣ Core Backend (Spring Boot / Java 21 — Port 8081)
 ```bash
 cd core-backend

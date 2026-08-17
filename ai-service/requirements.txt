@@ -15,3 +15,4 @@ ultralytics
 torch
 torchvision
 pillow
+inference-sdk
