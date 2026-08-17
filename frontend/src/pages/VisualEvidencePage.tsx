@@ -350,15 +350,39 @@ const VisualEvidencePage: React.FC = () => {
                 </div>
 
                 {/* Real Image container with bounding boxes */}
-                <div className="relative bg-slate-950 flex items-center justify-center overflow-hidden" style={{ height: 360 }}>
+                <div className="relative bg-slate-950 flex items-center justify-center overflow-hidden p-2" style={{ minHeight: 360, maxHeight: 520 }}>
                   {selectedImage.previewUrl || selectedImage.url ? (
-                    <img
-                      src={selectedImage.previewUrl || selectedImage.url}
-                      alt={selectedImage.filename}
-                      className="w-full h-full object-contain"
-                    />
+                    <div className="relative inline-block max-w-full max-h-full">
+                      <img
+                        src={selectedImage.previewUrl || selectedImage.url}
+                        alt={selectedImage.filename}
+                        className="max-h-[480px] w-auto max-w-full object-contain rounded"
+                      />
+                      {/* YOLO Bounding box overlays */}
+                      {showDetections && currentDetections.map((box, i) => (
+                        <div
+                          key={i}
+                          className="detection-box"
+                          style={{
+                            left: box.left,
+                            top: box.top,
+                            width: box.width,
+                            height: box.height,
+                            borderColor: box.color,
+                            background: `${box.color}20`,
+                          }}
+                        >
+                          <div
+                            className="detection-label"
+                            style={{ background: box.color, fontSize: 10, fontWeight: 700 }}
+                          >
+                            {box.label} {box.conf}%
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-700 flex items-center justify-center">
+                    <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-700 flex items-center justify-center p-8">
                       <div className="text-center">
                         <Camera size={48} className="text-slate-500 mx-auto mb-2" />
                         <div className="text-slate-300 text-sm font-medium">{selectedImage.filename}</div>
@@ -366,29 +390,6 @@ const VisualEvidencePage: React.FC = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* YOLO Bounding box overlays */}
-                  {showDetections && currentDetections.map((box, i) => (
-                    <div
-                      key={i}
-                      className="detection-box"
-                      style={{
-                        left: box.left,
-                        top: box.top,
-                        width: box.width,
-                        height: box.height,
-                        borderColor: box.color,
-                        background: `${box.color}10`,
-                      }}
-                    >
-                      <div
-                        className="detection-label"
-                        style={{ background: box.color, fontSize: 10 }}
-                      >
-                        {box.label} {box.conf}%
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 {/* Detection results */}

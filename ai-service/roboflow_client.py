@@ -113,15 +113,25 @@ def extract_predictions_from_raw(raw_data: Any) -> List[Dict[str, Any]]:
                     
     return extracted
 
-def normalize_roboflow_result(raw_result: Any, filename: str) -> Dict[str, Any]:
+from PIL import Image
+
+def get_image_dimensions(image_path: str) -> tuple:
+    try:
+        with Image.open(image_path) as img:
+            return float(img.width), float(img.height)
+    except Exception:
+        return 640.0, 480.0
+
+def normalize_roboflow_result(raw_result: Any, filename: str, image_path: Optional[str] = None) -> Dict[str, Any]:
     """
-    Normalizes raw Roboflow workflow outputs into a stable response schema.
+    Normalizes raw Roboflow workflow outputs into a stable response schema with percentage bounding boxes.
     """
     raw_predictions = extract_predictions_from_raw(raw_result)
     detections = []
     classes_found_set = set()
     risk_categories_set = set()
     highest_conf = 0.0
+    img_w, img_h = get_image_dimensions(image_path) if image_path else (640.0, 480.0)
 
     for pred in raw_predictions:
         if not isinstance(pred, dict):
@@ -139,19 +149,23 @@ def normalize_roboflow_result(raw_result: Any, filename: str) -> Dict[str, Any]:
         if conf > highest_conf:
             highest_conf = conf
 
-        # Extract bounding box coordinates safely
-        bbox = {"x": 0.0, "y": 0.0, "width": 0.0, "height": 0.0}
-        if "bbox" in pred and isinstance(pred["bbox"], dict):
-            b = pred["bbox"]
-            bbox["x"] = float(b.get("x", 0.0))
-            bbox["y"] = float(b.get("y", 0.0))
-            bbox["width"] = float(b.get("width", 0.0))
-            bbox["height"] = float(b.get("height", 0.0))
+        # Safely convert Roboflow coordinates to top-left percentages
+        raw_w = float(pred.get("width") or (float(pred.get("x_max", 0)) - float(pred.get("x_min", 0))) or 100.0)
+        raw_h = float(pred.get("height") or (float(pred.get("y_max", 0)) - float(pred.get("y_min", 0))) or 100.0)
+
+        if "x_min" in pred:
+            x_min = float(pred.get("x_min", 0))
+            y_min = float(pred.get("y_min", 0))
         else:
-            bbox["x"] = float(pred.get("x", 0.0))
-            bbox["y"] = float(pred.get("y", 0.0))
-            bbox["width"] = float(pred.get("width", 0.0))
-            bbox["height"] = float(pred.get("height", 0.0))
+            x_center = float(pred.get("x", raw_w / 2.0))
+            y_center = float(pred.get("y", raw_h / 2.0))
+            x_min = x_center - (raw_w / 2.0)
+            y_min = y_center - (raw_h / 2.0)
+
+        left_pct = max(0.0, min(95.0, (x_min / img_w) * 100.0)) if img_w > 0 else 10.0
+        top_pct = max(0.0, min(95.0, (y_min / img_h) * 100.0)) if img_h > 0 else 10.0
+        width_pct = max(2.0, min(100.0, (raw_w / img_w) * 100.0)) if img_w > 0 else 30.0
+        height_pct = max(2.0, min(100.0, (raw_h / img_h) * 100.0)) if img_h > 0 else 25.0
 
         risk_cat = get_risk_category(norm_cls)
         classes_found_set.add(norm_cls)
@@ -161,10 +175,10 @@ def normalize_roboflow_result(raw_result: Any, filename: str) -> Dict[str, Any]:
             "class": norm_cls,
             "confidence": round(conf, 2),
             "bbox": {
-                "x": round(bbox["x"], 1),
-                "y": round(bbox["y"], 1),
-                "width": round(bbox["width"], 1),
-                "height": round(bbox["height"], 1)
+                "x": round(left_pct, 1),
+                "y": round(top_pct, 1),
+                "width": round(width_pct, 1),
+                "height": round(height_pct, 1)
             }
         })
 
