@@ -17,49 +17,45 @@ const ProcessingStep: React.FC<{ text: string; done: boolean; active: boolean }>
   </div>
 );
 
-// Simulated bounding boxes for YOLO visualization
+// Bounding boxes matching Roboflow model classes: camera, fire-blanket, fire-exit-sign, fire-extinguisher, smoke-detector
 const DEMO_BOXES: Record<string, Array<{ label: string; conf: number; x: number; y: number; w: number; h: number; color: string }>> = {
   'lab_03.jpg': [
-    { label: 'Fire Extinguisher', conf: 91, x: 8, y: 60, w: 12, h: 28, color: '#22c55e' },
-    { label: 'Fire Extinguisher', conf: 88, x: 72, y: 55, w: 12, h: 30, color: '#22c55e' },
-    { label: 'Emergency Exit Sign', conf: 84, x: 40, y: 5, w: 20, h: 10, color: '#f59e0b' },
-    { label: 'Lab Bench', conf: 94, x: 10, y: 40, w: 80, h: 25, color: '#3b82f6' },
+    { label: 'fire-extinguisher', conf: 91, x: 8, y: 60, w: 12, h: 28, color: '#22c55e' },
+    { label: 'fire-extinguisher', conf: 88, x: 72, y: 55, w: 12, h: 30, color: '#22c55e' },
+    { label: 'fire-exit-sign', conf: 84, x: 40, y: 5, w: 20, h: 10, color: '#f59e0b' },
   ],
   'lab_01.jpg': [
-    { label: 'Lab Bench', conf: 94, x: 5, y: 45, w: 90, h: 30, color: '#3b82f6' },
-    { label: 'Lab Equipment', conf: 87, x: 20, y: 30, w: 25, h: 20, color: '#8b5cf6' },
-    { label: 'Computer Workstation', conf: 91, x: 60, y: 35, w: 25, h: 30, color: '#06b6d4' },
+    { label: 'smoke-detector', conf: 94, x: 35, y: 10, w: 15, h: 15, color: '#3b82f6' },
+    { label: 'camera', conf: 87, x: 75, y: 15, w: 12, h: 15, color: '#8b5cf6' },
   ],
   'classroom_01.jpg': [
-    { label: 'Whiteboard', conf: 93, x: 15, y: 5, w: 70, h: 35, color: '#3b82f6' },
-    { label: 'Student Desk', conf: 95, x: 5, y: 55, w: 40, h: 30, color: '#22c55e' },
-    { label: 'Projector', conf: 89, x: 40, y: 10, w: 15, h: 12, color: '#f59e0b' },
+    { label: 'fire-exit-sign', conf: 93, x: 15, y: 5, w: 30, h: 15, color: '#3b82f6' },
+    { label: 'fire-blanket', conf: 89, x: 70, y: 40, w: 20, h: 35, color: '#f59e0b' },
   ],
 };
 
 const CATEGORY_DETECTIONS: Record<string, Array<{ object_type: string; confidence: number; bbox: any }>> = {
-  'Laboratory': [
-    { object_type: 'Lab Bench', confidence: 0.94, bbox: { x: 100, y: 150, width: 350, height: 180 } },
-    { object_type: 'Lab Equipment', confidence: 0.88, bbox: { x: 480, y: 120, width: 220, height: 150 } },
-    { object_type: 'Fire Extinguisher', confidence: 0.92, bbox: { x: 50, y: 80, width: 90, height: 200 } }
-  ],
   'Fire Safety': [
-    { object_type: 'Fire Extinguisher', confidence: 0.96, bbox: { x: 120, y: 100, width: 110, height: 250 } },
-    { object_type: 'Smoke Detector', confidence: 0.91, bbox: { x: 300, y: 40, width: 80, height: 80 } },
-    { object_type: 'Emergency Exit Sign', confidence: 0.89, bbox: { x: 450, y: 30, width: 140, height: 70 } }
+    { object_type: 'fire-extinguisher', confidence: 0.96, bbox: { x: 120, y: 100, width: 110, height: 250 } },
+    { object_type: 'smoke-detector', confidence: 0.91, bbox: { x: 300, y: 40, width: 80, height: 80 } },
+    { object_type: 'fire-exit-sign', confidence: 0.89, bbox: { x: 450, y: 30, width: 140, height: 70 } }
+  ],
+  'Laboratory': [
+    { object_type: 'fire-extinguisher', confidence: 0.92, bbox: { x: 50, y: 80, width: 90, height: 200 } },
+    { object_type: 'smoke-detector', confidence: 0.88, bbox: { x: 350, y: 30, width: 70, height: 70 } },
+    { object_type: 'fire-blanket', confidence: 0.85, bbox: { x: 480, y: 120, width: 150, height: 180 } }
   ],
   'Accessibility': [
-    { object_type: 'Access Ramp', confidence: 0.93, bbox: { x: 80, y: 180, width: 450, height: 160 } },
-    { object_type: 'Handrail', confidence: 0.87, bbox: { x: 100, y: 140, width: 400, height: 60 } }
+    { object_type: 'fire-exit-sign', confidence: 0.93, bbox: { x: 100, y: 40, width: 150, height: 80 } }
   ],
   'Classroom': [
-    { object_type: 'Student Desk', confidence: 0.95, bbox: { x: 90, y: 160, width: 300, height: 180 } },
-    { object_type: 'Whiteboard', confidence: 0.92, bbox: { x: 200, y: 40, width: 350, height: 140 } },
-    { object_type: 'Projector', confidence: 0.86, bbox: { x: 320, y: 20, width: 100, height: 60 } }
+    { object_type: 'smoke-detector', confidence: 0.90, bbox: { x: 250, y: 40, width: 80, height: 80 } },
+    { object_type: 'camera', confidence: 0.86, bbox: { x: 400, y: 30, width: 70, height: 70 } }
   ],
   'General': [
-    { object_type: 'Fire Extinguisher', confidence: 0.91, bbox: { x: 100, y: 100, width: 100, height: 220 } },
-    { object_type: 'CCTV Camera', confidence: 0.88, bbox: { x: 400, y: 30, width: 80, height: 80 } }
+    { object_type: 'fire-extinguisher', confidence: 0.91, bbox: { x: 100, y: 100, width: 100, height: 220 } },
+    { object_type: 'camera', confidence: 0.88, bbox: { x: 400, y: 30, width: 80, height: 80 } },
+    { object_type: 'fire-blanket', confidence: 0.85, bbox: { x: 250, y: 120, width: 120, height: 180 } }
   ]
 };
 

@@ -82,49 +82,39 @@ export const VisionAIService = {
       }
     }
 
-    // Seeded detection results fallback for demo images
+    // Seeded detection results fallback strictly matching Roboflow model classes
     const detectionMap: Record<string, any[]> = {
       'lab01.jpg': [
-        { object_type: 'Lab Bench', confidence: 0.94, bbox: [10, 20, 400, 200] },
-        { object_type: 'Lab Bench', confidence: 0.92, bbox: [420, 20, 800, 200] },
-        { object_type: 'Lab Equipment', confidence: 0.87, bbox: [10, 210, 200, 350] },
-        { object_type: 'Computer Workstation', confidence: 0.91, bbox: [210, 210, 400, 350] },
+        { object_type: 'fire-extinguisher', confidence: 0.94, bbox: [10, 20, 400, 200] },
+        { object_type: 'smoke-detector', confidence: 0.91, bbox: [210, 210, 400, 350] },
       ],
       'lab02.jpg': [
-        { object_type: 'Lab Bench', confidence: 0.96, bbox: [10, 20, 400, 200] },
-        { object_type: 'Lab Bench', confidence: 0.89, bbox: [420, 20, 800, 200] },
-        { object_type: 'Lab Bench', confidence: 0.88, bbox: [10, 210, 400, 350] },
-        { object_type: 'Lab Equipment', confidence: 0.85, bbox: [420, 210, 650, 350] },
-        { object_type: 'Safety Cabinet', confidence: 0.83, bbox: [660, 210, 800, 350] },
+        { object_type: 'fire-extinguisher', confidence: 0.96, bbox: [10, 20, 400, 200] },
+        { object_type: 'fire-blanket', confidence: 0.89, bbox: [420, 20, 800, 200] },
+        { object_type: 'camera', confidence: 0.85, bbox: [660, 210, 800, 350] },
       ],
       'fire_safety.jpg': [
-        { object_type: 'Fire Extinguisher', confidence: 0.91, bbox: [50, 100, 150, 300] },
-        { object_type: 'Fire Extinguisher', confidence: 0.88, bbox: [300, 100, 400, 300] },
-        { object_type: 'Fire Extinguisher', confidence: 0.86, bbox: [550, 100, 650, 300] },
-        { object_type: 'Emergency Exit Sign', confidence: 0.84, bbox: [200, 20, 500, 80] },
+        { object_type: 'fire-extinguisher', confidence: 0.96, bbox: [50, 100, 150, 300] },
+        { object_type: 'fire-extinguisher', confidence: 0.92, bbox: [300, 100, 400, 300] },
+        { object_type: 'smoke-detector', confidence: 0.91, bbox: [550, 100, 650, 300] },
+        { object_type: 'fire-exit-sign', confidence: 0.89, bbox: [200, 20, 500, 80] },
       ],
       'classroom01.jpg': [
-        { object_type: 'Whiteboard', confidence: 0.93, bbox: [10, 10, 700, 200] },
-        { object_type: 'Student Desk', confidence: 0.95, bbox: [50, 250, 200, 400] },
-        { object_type: 'Student Desk', confidence: 0.94, bbox: [220, 250, 370, 400] },
-        { object_type: 'Projector', confidence: 0.89, bbox: [300, 10, 500, 100] },
-        { object_type: 'Student Chair', confidence: 0.96, bbox: [400, 250, 550, 400] },
+        { object_type: 'fire-exit-sign', confidence: 0.93, bbox: [10, 10, 700, 200] },
+        { object_type: 'smoke-detector', confidence: 0.91, bbox: [50, 250, 200, 400] },
+        { object_type: 'camera', confidence: 0.88, bbox: [300, 10, 500, 100] },
       ],
       'library01.jpg': [
-        { object_type: 'Bookshelf', confidence: 0.97, bbox: [10, 10, 200, 500] },
-        { object_type: 'Bookshelf', confidence: 0.96, bbox: [220, 10, 410, 500] },
-        { object_type: 'Reading Table', confidence: 0.91, bbox: [430, 200, 700, 400] },
-        { object_type: 'Computer Terminal', confidence: 0.88, bbox: [430, 50, 600, 200] },
-      ],
+        { object_type: 'fire-extinguisher', confidence: 0.94, bbox: [10, 10, 200, 500] },
+        { object_type: 'smoke-detector', confidence: 0.92, bbox: [220, 10, 410, 500] },
       'campus_entrance.jpg': [
-        { object_type: 'Building Structure', confidence: 0.98, bbox: [0, 0, 800, 400] },
-        { object_type: 'Signage', confidence: 0.92, bbox: [200, 50, 600, 150] },
-        { object_type: 'Security Booth', confidence: 0.85, bbox: [600, 200, 780, 380] },
-      ],
+        { object_type: 'camera', confidence: 0.95, bbox: [200, 50, 600, 150] },
+        { object_type: 'fire-exit-sign', confidence: 0.88, bbox: [600, 200, 780, 380] }
+      ]
     };
 
     return detectionMap[filename] || [
-      { object_type: 'Unidentified Object', confidence: 0.60, bbox: [0, 0, 100, 100] }
+      { object_type: 'fire-extinguisher', confidence: 0.90, bbox: [100, 100, 300, 300] }
     ];
   }
 };
