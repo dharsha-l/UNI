@@ -56,11 +56,19 @@ const VisualEvidencePage: React.FC = () => {
 
   useEffect(() => {
     if (!inspectionId) return;
-    Promise.all([getImages(inspectionId), getDetections(inspectionId)]).then(([imgs, dets]) => {
-      setImages(imgs);
-      setDetections(dets);
+    Promise.all([
+      getImages(inspectionId).catch(() => []),
+      getDetections(inspectionId).catch(() => [])
+    ]).then(([imgs, dets]) => {
+      const imgList = imgs || [];
+      const detList = dets || [];
+      setImages(imgList);
+      setDetections(detList);
       setLoading(false);
-      if (dets.length > 0) { setShowDetections(true); setSelectedImage(imgs[0]); }
+      if (detList.length > 0 && imgList.length > 0) {
+        setShowDetections(true);
+        setSelectedImage(imgList[0]);
+      }
     });
   }, [inspectionId]);
 
