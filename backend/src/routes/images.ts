@@ -10,13 +10,14 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 
 // Check access to inspection
 const checkInspectionAccess = (req: Request, res: Response, next: NextFunction) => {
-  if (['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER'].includes(req.user!.role)) {
+  const role = req.user?.role || '';
+  if (['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER', 'INSPECTOR', 'INSTITUTION_ADMIN', 'INSTITUTION_STAFF'].includes(role)) {
     return next();
   }
   const inspectionId = req.params.inspectionId || req.body.inspection_id;
   if (!inspectionId) return res.status(400).json({ error: 'Inspection ID missing' });
   const insp = DB.inspections.find(i => i.id === inspectionId);
-  if (!insp || insp.institution_id !== req.user!.institutionId) {
+  if (!insp || (req.user?.institutionId && insp.institution_id !== req.user.institutionId)) {
     return res.status(403).json({ error: 'Access denied' });
   }
   next();
@@ -45,7 +46,7 @@ router.post('/upload', authenticate, upload.single('file'), checkInspectionAcces
   res.json(record);
 });
 
-router.post('/:id/analyze', authenticate, requireRoles(['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER']), async (req: Request, res: Response) => {
+router.post('/:id/analyze', authenticate, requireRoles(['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER', 'INSPECTOR', 'INSTITUTION_ADMIN', 'INSTITUTION_STAFF']), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const image = DB.images.find(i => i.id === id);
@@ -79,7 +80,7 @@ router.post('/:id/analyze', authenticate, requireRoles(['SUPER_ADMIN', 'INSPECTI
   }
 });
 
-router.post('/analyze-all/:inspectionId', authenticate, requireRoles(['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER']), async (req: Request, res: Response) => {
+router.post('/analyze-all/:inspectionId', authenticate, requireRoles(['SUPER_ADMIN', 'INSPECTION_ADMIN', 'INSPECTION_MEMBER', 'INSPECTOR', 'INSTITUTION_ADMIN', 'INSTITUTION_STAFF']), async (req: Request, res: Response) => {
   try {
     const { inspectionId } = req.params;
     const images = DB.images.filter(i => i.inspection_id === inspectionId && i.status !== 'Analyzed');

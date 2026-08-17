@@ -67,7 +67,7 @@ export const uploadDocument = (inspectionId: string, file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('inspection_id', inspectionId);
-  return axios.post('/api/documents/upload', formData, {
+  return api.post('/documents/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }).then(r => r.data);
 };
@@ -87,7 +87,7 @@ export const uploadImage = (inspectionId: string, file: File, category: string) 
   formData.append('file', file);
   formData.append('inspection_id', inspectionId);
   formData.append('category', category);
-  return axios.post('/api/images/upload', formData, {
+  return api.post('/images/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }).then(r => r.data);
 };

@@ -67,8 +67,15 @@ const VisualEvidencePage: React.FC = () => {
   const onDrop = useCallback(async (files: File[]) => {
     if (!inspectionId) return;
     for (const file of files) {
-      const img = await uploadImage(inspectionId, file, selectedCategory);
-      setImages(prev => [img, ...prev]);
+      try {
+        const img = await uploadImage(inspectionId, file, selectedCategory);
+        if (img) {
+          setImages(prev => [img, ...prev]);
+          setSelectedImage(img);
+        }
+      } catch (err) {
+        console.error('Failed to upload image:', err);
+      }
     }
   }, [inspectionId, selectedCategory]);
 
@@ -110,16 +117,37 @@ const VisualEvidencePage: React.FC = () => {
   const getDetectionsForImage = (img: any) => {
     if (!img) return [];
     const realDets = detections.filter(d => d.image_id === img.id);
+    const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
+
     if (realDets.length > 0) {
-      const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
-      return realDets.map((d, i) => ({
-        label: d.object_type,
-        conf: Math.round(d.confidence > 1 ? d.confidence : d.confidence * 100),
-        color: colors[i % colors.length],
-        bbox: d.bbox
-      }));
+      return realDets.map((d, i) => {
+        const b = d.bbox || {};
+        const x = b.x !== undefined ? Math.min(Math.max((b.x / 6.4), 5), 75) : (i * 25) % 75 + 10;
+        const y = b.y !== undefined ? Math.min(Math.max((b.y / 4.8), 5), 70) : (i * 20) % 60 + 15;
+        const w = b.width !== undefined ? Math.min(Math.max((b.width / 6.4), 15), 50) : 30;
+        const h = b.height !== undefined ? Math.min(Math.max((b.height / 4.8), 15), 40) : 25;
+        return {
+          label: d.object_type,
+          conf: Math.round(d.confidence > 1 ? d.confidence : d.confidence * 100),
+          color: colors[i % colors.length],
+          left: `${x}%`,
+          top: `${y}%`,
+          width: `${w}%`,
+          height: `${h}%`
+        };
+      });
     }
-    return DEMO_BOXES[img?.filename] || [];
+
+    const demoList = DEMO_BOXES[img?.filename] || [];
+    return demoList.map(box => ({
+      label: box.label,
+      conf: box.conf,
+      color: box.color,
+      left: `${box.x}%`,
+      top: `${box.y}%`,
+      width: `${box.w}%`,
+      height: `${box.h}%`
+    }));
   };
 
   const currentDetections = getDetectionsForImage(selectedImage);
@@ -249,10 +277,10 @@ const VisualEvidencePage: React.FC = () => {
                       key={i}
                       className="detection-box"
                       style={{
-                        left: box.bbox ? `${Math.min(box.bbox.x1 / 6.4, 80)}%` : `${(i * 25) % 75 + 10}%`,
-                        top: box.bbox ? `${Math.min(box.bbox.y1 / 4.8, 70)}%` : `${(i * 20) % 60 + 15}%`,
-                        width: box.bbox ? `${Math.min(Math.max((box.bbox.x2 - box.bbox.x1) / 6.4, 15), 50)}%` : '30%',
-                        height: box.bbox ? `${Math.min(Math.max((box.bbox.y2 - box.bbox.y1) / 4.8, 15), 40)}%` : '25%',
+                        left: box.left,
+                        top: box.top,
+                        width: box.width,
+                        height: box.height,
                         borderColor: box.color,
                         background: `${box.color}10`,
                       }}

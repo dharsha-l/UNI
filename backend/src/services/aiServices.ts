@@ -58,6 +58,7 @@ export const VisionAIService = {
 
         const blob = new Blob([new Uint8Array(buffer)], { type: 'image/jpeg' });
         formData.append('file', blob, filename);
+        formData.append('image', blob, filename);
 
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -67,7 +68,11 @@ export const VisionAIService = {
         if (response.ok) {
           const resData = await response.json();
           if (resData.success && Array.isArray(resData.detections)) {
-            return resData.detections;
+            return resData.detections.map((d: any) => ({
+              object_type: d.object_type || d.class || 'Detected Object',
+              confidence: d.confidence || 0,
+              bbox: d.bbox || null
+            }));
           }
         } else {
           console.warn(`[VisionAIService] AI service returned status ${response.status}`);
