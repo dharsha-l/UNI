@@ -78,8 +78,7 @@ from roboflow_client import run_roboflow_workflow, get_roboflow_client
 
 @app.on_event("startup")
 def startup_event():
-    # Warm up Roboflow client if key is configured
-    get_roboflow_client()
+    pass
 
 # 1. Document Real Text Extraction Microservice
 @app.post("/api/v1/ai/documents/analyze")
