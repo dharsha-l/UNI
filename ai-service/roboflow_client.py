@@ -227,7 +227,9 @@ def run_roboflow_workflow(image_path: str, filename: str = "uploaded.jpg") -> Di
 
     workspace = os.getenv("ROBOFLOW_WORKSPACE", "civicissue-irb9x")
     workflow_id = os.getenv("ROBOFLOW_WORKFLOW_ID", "uni2-vuni2-l8vuj-1-rfdetr-medium-t1-logic")
+    model_id = os.getenv("ROBOFLOW_MODEL_ID", "uni2-l8vuj/1")
 
+    raw_result = None
     try:
         raw_result = client.run_workflow(
             workspace_name=workspace,
@@ -235,11 +237,16 @@ def run_roboflow_workflow(image_path: str, filename: str = "uploaded.jpg") -> Di
             images={"image": image_path},
             use_cache=False
         )
-        return normalize_roboflow_result(raw_result, filename)
     except Exception as e:
-        logger.error(f"Roboflow workflow execution failed: {type(e).__name__}")
-        return {
-            "success": False,
-            "error_code": "ROBOFLOW_ERROR",
-            "message": "Workflow inference execution failed."
-        }
+        logger.warning(f"Roboflow workflow attempt failed ({e}), falling back to direct model infer ({model_id})...")
+        try:
+            raw_result = client.infer(image_path, model_id=model_id)
+        except Exception as err:
+            logger.error(f"Roboflow model infer failed: {err}")
+            return {
+                "success": False,
+                "error_code": "ROBOFLOW_ERROR",
+                "message": f"Roboflow inference execution failed: {err}"
+            }
+
+    return normalize_roboflow_result(raw_result, filename, image_path)
