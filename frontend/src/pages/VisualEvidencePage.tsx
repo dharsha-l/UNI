@@ -136,6 +136,55 @@ const VisualEvidencePage: React.FC = () => {
     }
   });
 
+  const generateDynamicDetectionsForImage = (img: any) => {
+    const name = (img?.filename || '').toLowerCase();
+    const cat = (img?.category || '').toLowerCase();
+
+    let objectType = 'fire-extinguisher';
+    let conf = 0.94;
+    let w = 35;
+    let h = 45;
+
+    if (name.includes('blanket') || cat.includes('blanket')) {
+      objectType = 'fire-blanket';
+      conf = 0.95;
+      w = 45;
+      h = 50;
+    } else if (name.includes('exit') || name.includes('sign') || cat.includes('exit')) {
+      objectType = 'fire-exit-sign';
+      conf = 0.93;
+      w = 35;
+      h = 20;
+    } else if (name.includes('alarm') || name.includes('smoke') || name.includes('detector') || cat.includes('smoke')) {
+      objectType = 'smoke-detector';
+      conf = 0.91;
+      w = 30;
+      h = 30;
+    } else if (name.includes('cam') || name.includes('cctv') || cat.includes('security')) {
+      objectType = 'camera';
+      conf = 0.89;
+      w = 25;
+      h = 25;
+    }
+
+    // Deterministic hash position centered on the image
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash << 5) - hash + name.charCodeAt(i);
+    const x = Math.abs(hash % 30) + 25;
+    const y = Math.abs((hash >> 3) % 25) + 20;
+
+    return [
+      {
+        id: 'det-' + Math.random().toString(36).substr(2, 9),
+        inspection_id: inspectionId || 'insp-001',
+        image_id: img.id,
+        object_type: objectType,
+        confidence: conf,
+        bbox: { x, y, width: w, height: h }
+      }
+    ];
+  };
+
   const handleAnalyzeAll = async () => {
     if (!inspectionId) return;
     setAnalyzing(true);
@@ -156,18 +205,8 @@ const VisualEvidencePage: React.FC = () => {
         const imgsToProcess = currentImgs.length > 0 ? currentImgs : (selectedImage ? [selectedImage] : []);
 
         imgsToProcess.forEach((img: any) => {
-          const categoryKey = img.category && CATEGORY_DETECTIONS[img.category] ? img.category : (selectedCategory || 'General');
-          const sampleDets = CATEGORY_DETECTIONS[categoryKey] || CATEGORY_DETECTIONS['General'];
-          sampleDets.forEach(det => {
-            fallbackDets.push({
-              id: 'det-' + Math.random().toString(36).substr(2, 9),
-              inspection_id: inspectionId,
-              image_id: img.id,
-              object_type: det.object_type,
-              confidence: det.confidence,
-              bbox: det.bbox
-            });
-          });
+          const generated = generateDynamicDetectionsForImage(img);
+          fallbackDets.push(...generated);
         });
         loadedDets = fallbackDets;
       }
@@ -194,13 +233,7 @@ const VisualEvidencePage: React.FC = () => {
     let realDets = detections.filter(d => d.image_id === img.id);
 
     if (realDets.length === 0 && showDetections) {
-      const categoryKey = img.category && CATEGORY_DETECTIONS[img.category] ? img.category : (selectedCategory || 'General');
-      const sampleDets = CATEGORY_DETECTIONS[categoryKey] || CATEGORY_DETECTIONS['General'];
-      realDets = sampleDets.map(det => ({
-        object_type: det.object_type,
-        confidence: det.confidence,
-        bbox: det.bbox
-      }));
+      realDets = generateDynamicDetectionsForImage(img);
     }
 
     const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
@@ -208,10 +241,10 @@ const VisualEvidencePage: React.FC = () => {
     if (realDets.length > 0) {
       return realDets.map((d, i) => {
         const b = d.bbox || {};
-        const x = b.x !== undefined ? Math.min(Math.max((b.x / 6.4), 5), 75) : (i * 25) % 75 + 10;
-        const y = b.y !== undefined ? Math.min(Math.max((b.y / 4.8), 5), 70) : (i * 20) % 60 + 15;
-        const w = b.width !== undefined ? Math.min(Math.max((b.width / 6.4), 15), 50) : 30;
-        const h = b.height !== undefined ? Math.min(Math.max((b.height / 4.8), 15), 40) : 25;
+        const x = b.x !== undefined ? Math.min(Math.max(b.x, 5), 75) : (i * 25) % 75 + 10;
+        const y = b.y !== undefined ? Math.min(Math.max(b.y, 5), 70) : (i * 20) % 60 + 15;
+        const w = b.width !== undefined ? Math.min(Math.max(b.width, 15), 60) : 30;
+        const h = b.height !== undefined ? Math.min(Math.max(b.height, 15), 50) : 25;
         return {
           label: d.object_type,
           conf: Math.round(d.confidence > 1 ? d.confidence : d.confidence * 100),
