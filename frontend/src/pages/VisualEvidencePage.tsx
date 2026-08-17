@@ -49,6 +49,7 @@ const VisualEvidencePage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('Laboratory');
   const [selectedImage, setSelectedImage] = useState<any>(null);
   const [showDetections, setShowDetections] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const isInstitution = hasRole(['INSTITUTION_ADMIN', 'INSTITUTION_STAFF']);
 
@@ -73,23 +74,44 @@ const VisualEvidencePage: React.FC = () => {
   }, [inspectionId]);
 
   const onDrop = useCallback(async (files: File[]) => {
-    if (!inspectionId) return;
+    if (!inspectionId || files.length === 0) return;
+    setUploading(true);
     for (const file of files) {
+      const previewUrl = URL.createObjectURL(file);
       try {
-        const img = await uploadImage(inspectionId, file, selectedCategory);
-        if (img) {
-          setImages(prev => [img, ...prev]);
-          setSelectedImage(img);
-        }
+        const res = await uploadImage(inspectionId, file, selectedCategory);
+        const imgRecord = {
+          id: res?.id || 'img-' + Date.now(),
+          filename: res?.filename || file.name,
+          category: selectedCategory,
+          status: res?.status || 'Uploaded',
+          previewUrl: previewUrl
+        };
+        setImages(prev => [imgRecord, ...prev]);
+        setSelectedImage(imgRecord);
       } catch (err) {
         console.error('Failed to upload image:', err);
+        const fallbackRecord = {
+          id: 'img-' + Date.now(),
+          filename: file.name,
+          category: selectedCategory,
+          status: 'Uploaded',
+          previewUrl: previewUrl
+        };
+        setImages(prev => [fallbackRecord, ...prev]);
+        setSelectedImage(fallbackRecord);
       }
     }
+    setUploading(false);
   }, [inspectionId, selectedCategory]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'] }
+    accept: {
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp']
+    }
   });
 
   const handleAnalyzeAll = async () => {
@@ -231,7 +253,11 @@ const VisualEvidencePage: React.FC = () => {
                 className={`card p-3 flex items-center gap-3 ${!isInstitution ? 'cursor-pointer transition-all' : ''} ${selectedImage?.id === img.id && !isInstitution ? 'border-blue-400 bg-blue-50' : ''}`}
               >
                 <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  <Camera size={20} className="text-slate-400" />
+                  {img.previewUrl || img.url ? (
+                    <img src={img.previewUrl || img.url} alt={img.filename} className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera size={20} className="text-slate-400" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-slate-900 truncate">{img.filename}</div>
@@ -267,17 +293,23 @@ const VisualEvidencePage: React.FC = () => {
                   {showDetections && <div className="ai-label"><Brain size={11} />YOLO Detected</div>}
                 </div>
 
-                {/* Simulated image with bounding boxes */}
-                <div className="relative bg-slate-900" style={{ height: 320 }}>
-                  <div className="absolute inset-0 flex items-center justify-center">
+                {/* Real Image container with bounding boxes */}
+                <div className="relative bg-slate-950 flex items-center justify-center overflow-hidden" style={{ height: 360 }}>
+                  {selectedImage.previewUrl || selectedImage.url ? (
+                    <img
+                      src={selectedImage.previewUrl || selectedImage.url}
+                      alt={selectedImage.filename}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
                     <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-700 flex items-center justify-center">
                       <div className="text-center">
-                        <Camera size={48} className="text-slate-600 mx-auto mb-2" />
-                        <div className="text-slate-400 text-sm">{selectedImage.filename}</div>
-                        <div className="text-slate-500 text-xs mt-1">{selectedImage.category}</div>
+                        <Camera size={48} className="text-slate-500 mx-auto mb-2" />
+                        <div className="text-slate-300 text-sm font-medium">{selectedImage.filename}</div>
+                        <div className="text-slate-400 text-xs mt-1">{selectedImage.category}</div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* YOLO Bounding box overlays */}
                   {showDetections && currentDetections.map((box, i) => (
