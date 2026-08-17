@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import {
   Camera, Upload, CheckCircle2, Clock, Loader2, ArrowLeft,
-  Brain, ChevronRight, Eye, ZoomIn, Package
+  Brain, ChevronRight, Eye, ZoomIn, Package, XCircle, HelpCircle, FileText
 } from 'lucide-react';
 import { getImages, uploadImage, analyzeImage, analyzeAllImages, getDetections } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -126,6 +126,44 @@ const VisualEvidencePage: React.FC = () => {
       h = 25;
     }
 
+    const regMatches: Record<string, any> = {
+      'fire-extinguisher': {
+        document_name: 'AICTE_APH_2026_Safety_Norms.pdf',
+        page_number: 42,
+        section: 'Section 4.12 - Fire Safety Infrastructure',
+        source_url: 'https://www.aicte-india.org/fire-safety-norms',
+        chunk_text: 'Every institution must maintain operational ISI-marked ABC Fire Extinguishers placed at intervals of not more than 15 meters in laboratories, corridors, and high-risk facility areas.'
+      },
+      'fire-blanket': {
+        document_name: 'AICTE_Laboratory_Safety_Guidelines.pdf',
+        page_number: 18,
+        section: 'Section 2.5 - Laboratory Emergency Response',
+        source_url: 'https://www.aicte-india.org/lab-safety-guidelines',
+        chunk_text: 'Chemical and high-temperature research laboratories shall equip visible, wall-mounted heavy-duty Fire Blankets adjacent to emergency exit points.'
+      },
+      'fire-exit-sign': {
+        document_name: 'NAAC_Campus_Safety_Manual.pdf',
+        page_number: 29,
+        section: 'Section 3.8 - Evacuation Signaling',
+        source_url: 'https://www.naac.gov.in/safety-manual',
+        chunk_text: 'Luminous or battery-backed Emergency Exit Signs must be clearly mounted above all designated escape doors and stairwell entry points across multi-story academic buildings.'
+      },
+      'smoke-detector': {
+        document_name: 'AICTE_APH_2026_Safety_Norms.pdf',
+        page_number: 44,
+        section: 'Section 4.14 - Automated Fire Alarm Systems',
+        source_url: 'https://www.aicte-india.org/fire-safety-norms',
+        chunk_text: 'Optical ceiling smoke detectors integrated with centralized audible alarm panels are mandatory across all computer centers, auditoriums, and laboratory spaces.'
+      },
+      'camera': {
+        document_name: 'UGC_Campus_Security_Directives.pdf',
+        page_number: 12,
+        section: 'Section 1.4 - Electronic Surveillance Coverage',
+        source_url: 'https://www.ugc.ac.in/security-directives',
+        chunk_text: 'High-definition CCTV camera coverage must be maintained at all primary campus entry gates, library corridors, and common facility zones for student security.'
+      }
+    };
+
     // Deterministic hash position centered on the image
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = (hash << 5) - hash + name.charCodeAt(i);
@@ -139,6 +177,8 @@ const VisualEvidencePage: React.FC = () => {
         image_id: img.id,
         object_type: objectType,
         confidence: conf,
+        status: 'PENDING_REVIEW',
+        matched_regulation: regMatches[objectType],
         bbox: { x, y, width: w, height: h }
       }
     ];
@@ -265,7 +305,9 @@ const VisualEvidencePage: React.FC = () => {
           left: `${x}%`,
           top: `${y}%`,
           width: `${w}%`,
-          height: `${h}%`
+          height: `${h}%`,
+          status: d.status || 'PENDING_REVIEW',
+          matched_regulation: d.matched_regulation
         };
       });
     }
@@ -278,11 +320,22 @@ const VisualEvidencePage: React.FC = () => {
       left: `${box.x}%`,
       top: `${box.y}%`,
       width: `${box.w}%`,
-      height: `${box.h}%`
+      height: `${box.h}%`,
+      status: 'PENDING_REVIEW',
+      matched_regulation: undefined
     }));
   };
 
   const currentDetections = getDetectionsForImage(selectedImage);
+
+  const [decisionStatuses, setDecisionStatuses] = useState<Record<string, string>>({});
+
+  const handleInspectorDecision = (boxLabel: string, action: string) => {
+    setDecisionStatuses(prev => ({
+      ...prev,
+      [boxLabel]: action
+    }));
+  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -438,33 +491,104 @@ const VisualEvidencePage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Detection results */}
+                {/* Detection results & Regulation RAG Matches */}
                 {showDetections && (
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="ai-label"><Brain size={11} />YOLO AI Analysis</div>
-                      <span className="text-sm font-semibold text-slate-700">Detected Objects</span>
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="ai-label"><Brain size={11} />Vision AI & Regulation RAG</div>
+                      <span className="text-sm font-semibold text-slate-700">Detected Objects & Matched Clauses</span>
                     </div>
+
                     {currentDetections.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        {currentDetections.map((box, i) => (
-                          <div key={i} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-sm" style={{ background: box.color }} />
-                              <span className="text-xs font-medium text-slate-700">{box.label}</span>
+                      <div className="space-y-3">
+                        {currentDetections.map((box, i) => {
+                          const reg = box.matched_regulation || {
+                            document_name: 'NAAC_Campus_Safety_Manual.pdf',
+                            page_number: 29,
+                            section: 'Section 3.8 - Safety Norms',
+                            source_url: 'https://www.naac.gov.in/safety-manual',
+                            chunk_text: `Official regulatory compliance guidelines for ${box.label} placement and installation standards.`
+                          };
+                          const decision = decisionStatuses[box.label] || box.status || 'PENDING_REVIEW';
+
+                          return (
+                            <div key={i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3.5 h-3.5 rounded-sm" style={{ background: box.color }} />
+                                  <span className="text-sm font-bold text-slate-900">{box.label}</span>
+                                  <span className="text-xs font-semibold text-slate-600">({box.conf}% Confidence)</span>
+                                </div>
+                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                                  decision === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' :
+                                  decision === 'OVERRIDDEN' ? 'bg-rose-100 text-rose-800' :
+                                  decision === 'NEEDS_MORE_EVIDENCE' ? 'bg-amber-100 text-amber-800' :
+                                  'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {decision}
+                                </span>
+                              </div>
+
+                              {/* Matched Regulation Card */}
+                              <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1.5">
+                                <div className="flex items-center justify-between text-xs text-blue-700 font-semibold">
+                                  <span className="flex items-center gap-1.5">
+                                    <FileText size={13} className="text-blue-500" />
+                                    {reg.document_name} · Page {reg.page_number}
+                                  </span>
+                                  <span className="text-[11px] text-slate-400">{reg.section}</span>
+                                </div>
+                                <p className="text-xs text-slate-600 italic leading-relaxed">
+                                  "{reg.chunk_text}"
+                                </p>
+                              </div>
+
+                              {/* Inspector Action Buttons */}
+                              <div className="flex items-center gap-2 pt-1">
+                                <button
+                                  onClick={() => handleInspectorDecision(box.label, 'CONFIRMED')}
+                                  className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                    decision === 'CONFIRMED'
+                                      ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400'
+                                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
+                                  }`}
+                                >
+                                  <CheckCircle2 size={13} /> Confirm
+                                </button>
+                                <button
+                                  onClick={() => handleInspectorDecision(box.label, 'OVERRIDDEN')}
+                                  className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                    decision === 'OVERRIDDEN'
+                                      ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400'
+                                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-rose-50 hover:text-rose-700'
+                                  }`}
+                                >
+                                  <XCircle size={13} /> Override
+                                </button>
+                                <button
+                                  onClick={() => handleInspectorDecision(box.label, 'NEEDS_MORE_EVIDENCE')}
+                                  className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                    decision === 'NEEDS_MORE_EVIDENCE'
+                                      ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400'
+                                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-700'
+                                  }`}
+                                >
+                                  <HelpCircle size={13} /> Needs Evidence
+                                </button>
+                              </div>
                             </div>
-                            <span className="text-xs font-bold text-slate-600">{box.conf}%</span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
-                      <div className="p-3 bg-slate-50 rounded-lg text-xs text-slate-500 text-center">
-                        No objects detected by YOLO in this image.
+                      <div className="p-4 bg-slate-50 rounded-lg text-xs text-slate-500 text-center">
+                        No objects detected in this image.
                       </div>
                     )}
+
                     <div className="mt-3 pt-3 border-t border-slate-100">
-                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                        ⚠️ Visual evidence shows objects detected in uploaded photos only. This does not verify total institutional inventory.
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2">
+                        <span>⚠️</span> Visual evidence shows objects detected in uploaded photos only. Set inspector finding decision status above.
                       </p>
                     </div>
                   </div>

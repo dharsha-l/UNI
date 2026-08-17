@@ -16,3 +16,6 @@ torch
 torchvision
 pillow
 inference-sdk
+sentence-transformers
+pgvector
+psycopg2-binary

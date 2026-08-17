@@ -180,20 +180,42 @@ async def analyze_image(
         result = run_roboflow_workflow(temp_path, filename=fname)
 
         if not result.get("success"):
-            if result.get("error_code") == "ROBOFLOW_NOT_CONFIGURED":
-                return JSONResponse(status_code=503, content=result)
-            return JSONResponse(status_code=500, content=result)
+          if result.get("error_code") == "ROBOFLOW_NOT_CONFIGURED":
+            return JSONResponse(status_code=503, content=result)
+          return JSONResponse(status_code=500, content=result)
+
+        # Attach regulation references and PENDING_REVIEW finding status to each detection
+        from regulation_rag import match_regulations_for_class
+
+        if "detections" in result and isinstance(result["detections"], list):
+          for det in result["detections"]:
+            cls_name = det.get("class") or det.get("object_type") or "unknown"
+            det["matched_regulation"] = match_regulations_for_class(cls_name)
+            det["status"] = "PENDING_REVIEW"
 
         return result
     finally:
-        if os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except Exception:
-                pass
+      if os.path.exists(temp_path):
+        try:
+          os.remove(temp_path)
+        except Exception:
+          pass
 
 
-# 3. AI Cross-Verification Engine
+# 3. Regulation-Aware RAG Search Microservice
+@app.get("/api/v1/ai/regulations/search")
+async def search_regulations_endpoint(q: str = "", limit: int = 5):
+  """
+  Regulation-aware vector search microservice powered by PostgreSQL & pgvector.
+  """
+  if not q or not q.strip():
+    return []
+  from regulation_rag import search_regulations
+
+  return search_regulations(q, limit=limit)
+
+
+# 4. AI Cross-Verification Engine
 @app.post("/api/v1/ai/cross-verify", response_model=RiskScoreResult)
 async def cross_verify(req: CrossVerifyRequest):
     findings = [
