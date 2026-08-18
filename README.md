@@ -3,11 +3,61 @@
 
 > **"AI suggests. Evidence explains. Inspector decides."**
 
-UNI-INSPECTION is an enterprise-grade microservice platform for AI-assisted inspection and verification of higher educational institutions in India. Designed for **Smart India Hackathon (SIH Problem Statement SIH1730)**, it focuses on evidence traceability, cross-verification, live computer vision, and human-in-the-loop audit trail verification.
+UNI-INSPECTION is an enterprise-grade microservice platform for AI-assisted inspection and verification of higher educational institutions in India. Designed for **Smart India Hackathon (SIH Problem Statement SIH1730)**, it focuses on evidence traceability, cross-verification, live computer vision, regulation-aware RAG, and human-in-the-loop audit trail verification.
 
 ---
 
-## 🚀 Quick Start & How to Run
+## 🔄 End-to-End Inspection & RAG Workflow Diagrams
+
+### Microservices System Flow
+
+```mermaid
+graph TD
+    User["🌐 Inspector Web Command Dashboard (React 19 / TS)"]
+    Gateway["🛡️ Spring Cloud Gateway (Port 8080)"]
+    CoreBackend["⚙️ Spring Boot Core Backend (Port 8081 / PostgreSQL)"]
+    FastAPI["⚡ Python FastAPI AI Microservice (Port 8000)"]
+    Postgres[("🐘 PostgreSQL 16 DB + pgvector Extension")]
+    RoboflowCloud["☁️ Roboflow Cloud RF-DETR Model API"]
+
+    User -->|OAuth2 JWT / REST Requests| Gateway
+    Gateway -->|North-South Proxy /api/**| CoreBackend
+    Gateway -->|North-South Proxy /api/v1/ai/**| FastAPI
+    CoreBackend -->|JPA Relational Storage| Postgres
+    FastAPI -->|pgvector Cosine Search| Postgres
+    FastAPI -->|Live Model Inference API| RoboflowCloud
+```
+
+---
+
+### Photo-to-Regulation RAG Workflow
+
+```
+📷 Upload Infrastructure Photograph (e.g. Corridor / Laboratory)
+       │
+       ▼ (Step 1: Roboflow RF-DETR Vision AI Inference)
+🔍 Object Detected: "fire-extinguisher" (Confidence: 94%)
+       │
+       ▼ (Step 2: Class-to-Query Vector Search Mapping)
+🔎 Query: "fire extinguisher placement safety compliance AICTE NAAC standards"
+       │
+       ▼ (Step 3: sentence-transformers / all-MiniLM-L6-v2)
+📐 Generate 384-Dimensional Dense Vector Embedding
+       │
+       ▼ (Step 4: PostgreSQL pgvector Cosine Distance Search)
+🐘 SELECT * FROM regulation_chunks ORDER BY embedding <=> query_vec LIMIT 1
+       │
+       ▼ (Step 5: Matched Regulatory Citation Card)
+📄 Document: AICTE_APH_2026_Safety_Norms.pdf · Page 42 (Section 4.12)
+💬 Rule: "Every institution must maintain operational ISI-marked ABC Fire Extinguishers..."
+       │
+       ▼ (Step 6: Human Inspector Decision Controls)
+🟢 [CONFIRM]   🔴 [OVERRIDE]   🟡 [NEEDS MORE EVIDENCE]
+```
+
+---
+
+## ⚡ Quick Start & How to Run
 
 ### Prerequisites
 - **Node.js** 18+ and **npm**
@@ -17,9 +67,9 @@ UNI-INSPECTION is an enterprise-grade microservice platform for AI-assisted insp
 
 ---
 
-### ⚡ One-Click Double-Tap Launchers (Recommended)
+### 🚀 One-Click Double-Tap Launchers
 
-Simply run the automated launcher script for your operating system:
+Run the automated launcher script for your operating system:
 
 #### 🍏 macOS / 🐧 Linux:
 ```bash
@@ -47,14 +97,14 @@ run.bat
 
 | Service | Technology | Port | Access URL |
 | :--- | :--- | :--- | :--- |
-| **React Frontend** | React 19 + TypeScript + Tailwind | `5173` | **http://localhost:5173** |
+| **React Frontend** | React 19 + TypeScript + Tailwind | `5173` / `5174` | **http://localhost:5173** |
 | **API Gateway** | Spring Cloud Gateway | `8080` | **http://localhost:8080** |
 | **Core Backend** | Spring Boot 3 (Java 21) + PostgreSQL | `8081` | **http://localhost:8081** |
 | **AI Microservice** | Python FastAPI + `inference-sdk` | `8000` | **http://localhost:8000/docs** |
 
 ---
 
-## 🎯 Completed AI & Inspection Capabilities
+## 🎯 Core Completed AI & Inspection Capabilities
 
 ### 1. Hybrid Real Document Extraction (Step 1 Completed ✅)
 - 3-Tier fallback extraction pipeline: `pdfplumber` (digital PDF text) ➔ Gemini 3.6 Flash Vision API ➔ OpenCV + PyTesseract preprocessed OCR.
@@ -68,11 +118,17 @@ run.bat
   3. `fire-exit-sign` (Emergency Exit Signage)
   4. `fire-extinguisher` (Fire Extinguisher Cylinders)
   5. `smoke-detector` (Ceiling Smoke Detectors)
-- **Features**: Automatic center-to-corner percentage bounding box coordinate conversion (`x, y, w, h` relative percentages `0-100%`) using PIL image dimension extraction, photo-relative inline box positioning, and instant live AI analysis on upload.
 
-### 3. Human-in-the-Loop Audit & Traceability
-- Inspector decision flow: **ACCEPT** or **OVERRIDE** with mandatory audit reason.
-- Full evidence provenance chain linking: Document Claim ➔ Photo Detection ➔ External AISHE Baseline ➔ NAAC/AICTE Regulation ➔ Inspector Decision.
+### 3. Regulation-Aware RAG Search via `pgvector` (Step 3 Completed ✅)
+- **Vector Search Engine**: PostgreSQL 16 + `pgvector` extension + `sentence-transformers/all-MiniLM-L6-v2`.
+- **Deduplicated Chunker**: `index_regulations.py` reads official NAAC, AICTE, UGC, and NIRF PDFs from `ai-service/regulations/` into 500-800 word vector embeddings.
+- **Class-to-Query Mapping**: Detected objects automatically trigger vector queries against official AICTE/NAAC regulatory clauses.
+
+### 4. Human-in-the-Loop Audit Decision Controls (Step 3 Completed ✅)
+- Inspector decision flow with 3 interactive action buttons:
+  - 🟢 **Confirm** (`CONFIRMED`)
+  - 🔴 **Override** (`OVERRIDDEN`)
+  - 🟡 **Needs Evidence** (`NEEDS_MORE_EVIDENCE`)
 
 ---
 
